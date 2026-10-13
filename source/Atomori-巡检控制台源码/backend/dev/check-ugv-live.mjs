@@ -70,7 +70,7 @@ try {
     assert.equal(await metrics.nth(1).textContent(), '0.18 m/s');
     assert.equal(await metrics.nth(2).textContent(), '24.2 °C');
     assert.equal(await metrics.nth(3).textContent(), '56 %RH');
-    assert.equal(await page.locator('.environment-grid b').allTextContents().then(values => values.join(',')), '触发,未触发,未触发');
+    assert.equal(await page.locator('.environment-grid b').allTextContents().then(values => values.join(',')), '触发,未触发,正常');
     assert.match(await page.locator('.link-topology').textContent(), /地图 · X 5.50/);
     console.log('PASS 小车有效温湿度、速度、地图定位及数字触发状态同步');
     status.environment.stale = true;

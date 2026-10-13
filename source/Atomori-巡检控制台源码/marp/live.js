@@ -148,14 +148,21 @@
     document.querySelector('.link-topology').textContent = `${localized ? '地图' : '里程计'} · ${positionText(location)}`;
     document.querySelector('.link-topology').title = '车端原始坐标；地图未叠加车辆标记，点击车辆详情查看更多数据';
     document.querySelectorAll('.environment-grid button').forEach((button, index) => {
-      if (!config.carConfigured) { button.querySelector('b').textContent = '—'; return; }
-      const [key, label] = [['tilt', '倾斜'], ['flame', '火焰'], ['mq2', 'MQ2']][index];
+      const [key, label] = [['tilt', '倾斜'], ['flame', '火焰'], ['mq2', '气体检测']][index];
       const sensor = data.environment?.digital?.[key];
-      const valid = sensor?.valid === true && fresh(ugvAge(sensor.ageS));
+      const valid = config.carConfigured && sensor?.valid === true
+        && typeof sensor.triggered === 'boolean' && fresh(ugvAge(sensor.ageS));
+      const gas = key === 'mq2';
       button.querySelector('span').textContent = label;
-      button.querySelector('b').textContent = valid ? sensor.triggered ? '触发' : '未触发' : '—';
-      button.querySelector('b').style.color = valid && sensor.triggered ? 'var(--amber)' : '';
-      button.title = '数字传感器开关量，不代表气体浓度；过期或未上报显示 —';
+      button.querySelector('b').textContent = valid
+        ? gas ? sensor.triggered ? '危险' : '正常' : sensor.triggered ? '触发' : '未触发'
+        : '—';
+      button.querySelector('b').style.color = gas
+        ? valid ? sensor.triggered ? 'var(--red)' : 'var(--green)' : 'var(--muted)'
+        : valid && sensor.triggered ? 'var(--amber)' : '';
+      button.title = gas
+        ? '气体检测依据 MQ2 数字报警信号：触发显示危险，未触发显示正常；不代表气体种类或浓度。离线、过期或未上报显示 —'
+        : '数字传感器开关量，不代表气体浓度；过期或未上报显示 —';
     });
     const details = get('ugv-live-details');
     if (details) {

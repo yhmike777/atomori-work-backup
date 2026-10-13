@@ -4,7 +4,8 @@ param(
   [string]$PlatformIp = '192.168.1.9'
 )
 $ErrorActionPreference = 'Stop'
-$pythonLauncher = Join-Path $PSScriptRoot '.venv-mavlink\Scripts\python.exe'
+$localPythonLauncher = Join-Path $PSScriptRoot '.venv-mavlink-local\Scripts\python.exe'
+$pythonLauncher = if (Test-Path -LiteralPath $localPythonLauncher) { $localPythonLauncher } else { Join-Path $PSScriptRoot '.venv-mavlink\Scripts\python.exe' }
 if (-not (Test-Path -LiteralPath $pythonLauncher)) { throw 'Mission Planner 接收环境尚未安装。' }
 $udpListener = Get-NetUDPEndpoint -LocalPort 14551 -ErrorAction SilentlyContinue | Select-Object -First 1
 # Windows venv 的启动器可能另起基础 Python 进程；规则匹配实际监听者。
