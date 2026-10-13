@@ -1,0 +1,25 @@
+# Local dependencies and interpreter caches
+node_modules/
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+
+# Credentials and machine-specific settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Downloaded upstream Git metadata and superseded export packages
+/upstream/
+/*.zip
+
+# Temporary runtime output
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

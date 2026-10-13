@@ -1,0 +1,27 @@
+# Atomori 巡检控制台工作备份
+
+2026-10-13 从当前电脑工作目录保存的源码快照。实际项目位于 `source/Atomori-巡检控制台源码`。
+
+## 内容
+
+- 前端 HTML、CSS、JavaScript 与页面图片素材。
+- Node.js 后端、业务记录 JSON、自动测试与开发验证脚本。
+- 设备只读遥测桥、Mission Planner 桥及部署说明。
+- 历史接入文档、车端地图和页面验证截图。
+
+虚拟环境、Python 缓存、本机凭据、旧 ZIP 导出包和 `upstream` 中仅存的外部 Git 元数据不纳入备份。上游设备代码来源为 https://github.com/SmallH0433/UAV-CAR ，本仓库保存的是本地巡检控制台工作成果。
+
+## 启动
+
+安装 Node.js 20 或更高版本后，在 PowerShell 中执行：
+
+```powershell
+cd 'source/Atomori-巡检控制台源码/backend'
+node src/server.js
+```
+
+打开 http://127.0.0.1:3000/ 。后端测试在同一目录运行 `node --test`。
+
+设备连接配置见项目中的 `backend/README.md`。目前 `backend/start-connected.ps1` 默认断开无人机树莓派，具体约束见项目 `AGENTS.md`。备份操作不代表设备在线验证。
+
+`backend/data/records.json` 是当前本机业务记录的快照；记录属于演示任务或本机业务记录。真实设备控制仍关闭。

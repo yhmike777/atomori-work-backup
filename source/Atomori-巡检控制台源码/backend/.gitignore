@@ -1,0 +1,3 @@
+data/
+.venv-mavlink/
+__pycache__/

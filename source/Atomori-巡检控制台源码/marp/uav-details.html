@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>UAV-01 Mission Planner 实时遥测 · Atomori</title>
+  <link rel="stylesheet" href="console.css?rev=20261010a">
+  <link rel="stylesheet" href="uav-details.css?rev=20261010b">
+  <script src="api.js?rev=20261008a" defer></script>
+  <script src="uav-details.js?rev=20261010c" defer></script>
+</head>
+<body>
+<div class="flight-shell">
+  <header class="flight-header"><a class="flight-brand" href="巡检控制台.html">Atomori <span>OPERATIONS</span></a><a class="back-link" href="巡检控制台.html">← 返回巡检平台</a></header>
+  <main>
+    <div class="flight-title"><div><p class="eyebrow">UAV-01 / MISSION PLANNER</p><h1>无人机实时飞行数据</h1><p class="subtitle">Mission Planner MAVLink 转发 · 飞行仪表与健康状态</p></div><button id="refresh-flight" type="button">刷新数据 ↻</button></div>
+    <div id="flight-banner" class="flight-banner" role="status" aria-live="polite">正在连接遥测服务…</div>
+    <div class="flight-overview">
+      <section class="flight-card attitude-card"><div class="card-heading"><h2>飞行仪表 HUD</h2><span id="attitude-status">等待转发</span></div>
+        <svg class="flight-attitude" viewBox="0 0 640 360" role="img" aria-label="姿态数据不可用" id="flight-attitude">
+          <defs><clipPath id="flight-horizon-clip"><rect width="640" height="360" rx="5"/></clipPath></defs>
+          <rect width="640" height="360" rx="5" fill="#101923"/>
+          <g clip-path="url(#flight-horizon-clip)"><g id="flight-horizon" visibility="hidden"><path d="M-640-820h1920v1000H-640Z" fill="#527db6"/><path d="M-640 180h1920v1000H-640Z" fill="#697238"/><path d="M-640 180h1920" stroke="#e5edf1" stroke-width="2"/><g stroke="#e0e9ef"><path d="M270 145h100m-80-35h60m-70-35h80M270 215h100m-80 35h60m-70 35h80"/></g><g fill="#e0e9ef" stroke="none" font-size="12"><text x="250" y="149">10</text><text x="270" y="114">20</text><text x="250" y="219">-10</text><text x="267" y="254">-20</text></g></g></g>
+          <rect width="640" height="38" rx="5" fill="#101923dd" stroke="none"/><g stroke="#bdcce0"><path d="M70 14v12m50-6v6m50-12v12m50-6v6m50-12v12m100 0V14m50 12v-6m50 6V14m50 12v-6m50 6V14"/></g>
+          <path d="m313 30 7-10 7 10" stroke="#f2c276" stroke-width="2"/>
+          <path d="M230 180h60l15 9h30l15-9h60" stroke="#f3c578" stroke-width="3"/>
+          <g stroke="#c2d2df"><path d="M35 90h15m-15 35h10m-10 35h15m-15 35h10m-10 35h15m-15 35h10M590 90h15m-10 35h10m-15 35h15m-10 35h10m-15 35h15m-10 35h10"/></g>
+          <rect x="3" y="167" width="105" height="30" fill="#101923dd" stroke="none"/><rect x="532" y="167" width="105" height="30" fill="#101923dd" stroke="none"/>
+          <g fill="#e8edf3" stroke="none" font-size="15"><text id="hud-airspeed" x="12" y="188">— m/s</text><text id="hud-altitude" x="545" y="188">— m</text><text id="hud-armed" x="320" y="105" text-anchor="middle" font-size="24">状态未知</text><text id="hud-mode" x="620" y="287" text-anchor="end">—</text><text id="hud-groundspeed" x="15" y="320">地速 —</text><text id="hud-voltage" x="15" y="344">电池 —</text><text id="attitude-empty" x="320" y="235" text-anchor="middle" fill="#c8d5e1">等待 Mission Planner 实时转发</text></g>
+        </svg>
+        <div class="angle-values"><div><span>横滚 Roll</span><b id="roll-value">—</b></div><div><span>俯仰 Pitch</span><b id="pitch-value">—</b></div><div><span>航向 Heading</span><b id="heading-value">—</b></div></div>
+      </section>
+      <section class="flight-card"><div class="card-heading"><h2>飞行状态</h2><span id="connection-badge" class="status-badge">等待数据</span></div><dl id="flight-state" class="flight-state"></dl><p class="card-note">状态过期后自动清空，未解锁与断连分别显示。</p></section>
+      <section class="flight-card"><div class="card-heading"><h2>核心遥测</h2><span>独立校验有效性</span></div><div id="primary-metrics" class="primary-metrics"></div></section>
+    </div>
+    <div class="flight-bottom"><section class="flight-card"><div class="card-heading"><h2>飞控健康 / 起飞前检查</h2><span>飞控上报</span></div><dl id="flight-health" class="flight-state"></dl><p class="card-note">人工检查项不能由遥测确认；未收到检查结果时显示“未上报”。</p></section>
+      <section class="flight-card"><div class="card-heading"><h2>状态消息</h2><span>最近 30 秒</span></div><div id="flight-alerts" class="flight-alerts">等待飞控状态消息</div></section></div>
+    <section class="flight-card telemetry-card"><div class="card-heading"><h2>详细实时遥测</h2><span>独立检查接收时间</span></div><p class="card-note">相对 home、局部高度、海拔与测距采用不同基准。接收年龄表示数据到达本机后的时间，不代表端到端延迟。</p><div class="telemetry-scroll"><table class="telemetry-table"><thead><tr><th scope="col">参数</th><th scope="col">当前值</th><th scope="col">数据状态</th><th scope="col">本机接收年龄</th><th scope="col">MAVLink 来源</th></tr></thead><tbody id="telemetry-rows"></tbody></table></div></section>
+    <section class="flight-card connection-card"><div class="card-heading"><h2>Mission Planner 数据链路</h2><span>仅接收</span></div><p class="connection-note" id="connection-note">等待另一台电脑将 Mission Planner 的 MAVLink Mirror 转发至本机 UDP 14551。此页不会发送解锁、起飞或参数修改命令。</p><dl class="flight-state"><div><dt>转发来源 / 飞控 ID</dt><dd id="mirror-source">尚未收到转发</dd></div><div><dt>有效 MAVLink 消息</dt><dd id="mirror-count">0</dd></div><div><dt>最近响应</dt><dd id="last-response">—</dd></div><div><dt>刷新状态</dt><dd id="poll-status">连接中</dd></div></dl></section>
+    <details class="flight-card raw-details"><summary>查看本次接口响应</summary><pre id="raw-flight">尚未收到数据</pre></details>
+  </main><footer class="flight-footer">Atomori · UAV-01 <span>真实遥测 · 缺失数据不估算</span></footer>
+</div>
+</body></html>

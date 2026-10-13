@@ -1,0 +1,18 @@
+[Unit]
+Description=Atomori read-only flight telemetry HTTP bridge
+After=ov9281-mavros.service
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/usr/bin/flock --exclusive --wait 60 %t/ov9281-podman-storage.lock /usr/bin/podman info
+ExecStartPre=-/usr/bin/podman rm -f atomori-telemetry
+ExecStart=/usr/bin/podman run --rm --name atomori-telemetry --network host --ipc=host --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m --env ROS_LOG_DIR=/tmp/ros-log --env PYTHONUNBUFFERED=1 -v /home/pi/atomori_console_telemetry:/telemetry:ro localhost/air-ground-landing-ros2:humble /bin/bash -lc "source /opt/ros/humble/setup.bash && exec python3 /telemetry/flight_status_http.py --ros-args -r __node:=atomori_telemetry_http -p http_port:=8768 -p guided_status_topic:=/landing/action/status"
+ExecStop=/usr/bin/podman stop -t 5 atomori-telemetry
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

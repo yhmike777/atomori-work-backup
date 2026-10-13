@@ -1,0 +1,45 @@
+{
+  "findings": [
+    {
+      "id": "F-001",
+      "missionId": "P-20261001-03",
+      "assetId": "AS-B08-001",
+      "pointId": "B-08",
+      "source": "A8 Mini",
+      "note": "法兰外观待复核",
+      "status": "pending",
+      "createdAt": "2026-10-01T14:32:18+08:00",
+      "updatedAt": "2026-10-01T14:32:18+08:00"
+    },
+    {
+      "id": "F-002",
+      "missionId": "P-20261001-03",
+      "assetId": "AS-C06-001",
+      "pointId": "C-06",
+      "source": "thermal_demo",
+      "note": "接头局部温升，最高 48.6°C（样本）",
+      "status": "pending",
+      "createdAt": "2026-10-01T14:32:18+08:00",
+      "updatedAt": "2026-10-01T14:32:18+08:00"
+    }
+  ],
+  "rechecks": [],
+  "events": [
+    {
+      "id": "E-001",
+      "missionId": "P-20261001-03",
+      "type": "demo",
+      "title": "空中观察点已到达",
+      "detail": "UAV-01 · 任务执行中",
+      "occurredAt": "2026-10-01T14:32:18+08:00"
+    },
+    {
+      "id": "E-002",
+      "missionId": "P-20261001-03",
+      "type": "demo",
+      "title": "视觉参考目标已捕获",
+      "detail": "IMX296 · 目标跟踪有效",
+      "occurredAt": "2026-10-01T14:31:52+08:00"
+    }
+  ]
+}
