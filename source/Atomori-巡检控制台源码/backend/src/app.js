@@ -126,6 +126,10 @@ export function createApp({ store, webRoot, integrations = unconfiguredIntegrati
       const savedMapMatch = pathname.match(/^\/api\/v1\/maps\/([A-Za-z0-9_-]{1,128})\.png$/);
       if (req.method === 'GET' && savedMapMatch) return proxyMedia(res, await integrations.mapImage(savedMapMatch[1]));
       if (req.method === 'GET' && pathname === '/api/v1/devices/UGV-01/scan') return json(res, 200, { data: await integrations.scan() });
+      if (req.method === 'GET' && pathname === '/api/v1/devices/UGV-01/details') {
+        if (!integrations.vehicleDetails) return fail(res, 503, 'ADAPTER_NOT_CONFIGURED', '车端详情接口未配置');
+        return json(res, 200, { data: await integrations.vehicleDetails() });
+      }
       const cameraMatch = pathname.match(/^\/api\/v1\/devices\/([^/]+)\/cameras\/([^/]+)$/);
       if (req.method === 'GET' && cameraMatch) {
         const controller = new AbortController();

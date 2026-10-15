@@ -19,6 +19,8 @@ test('车端与机载只读接口可映射和代理，控制保持关闭', async
   const car = await listen((req, res) => {
     if (req.url === '/api/status') return res.end(JSON.stringify({ server_time_ms: 1780000000000, odom: { pose: [1, 2, 0.5], speed_mps: 0.2 }, topic_ages_s: { odom: 0.1 }, battery_voltage: null, camera: { ready: true, age_s: 0.1 }, map: { info: { width: 20 }, age_s: 0.2 } }));
     if (req.url === '/api/scan.json') return res.end(JSON.stringify({ age_s: 0.1, points: [[0, 1]] }));
+    if (req.url === '/api/nav/status') return res.end(JSON.stringify({ active: false, goal: [0, 0], path: [], has_map: true }));
+    if (req.url === '/api/maps') return res.end(JSON.stringify({ maps: ['map_20260924_224659'] }));
     if (req.url === '/api/camera.jpg') { res.setHeader('content-type', 'image/jpeg'); return res.end(Buffer.from([0xff, 0xd8, 0xff, 0xd9])); }
     if (req.url === '/api/map.png' || req.url === '/api/maps/map_20260924_224659.png') { res.setHeader('content-type', 'image/png'); return res.end(Buffer.from([137, 80, 78, 71])); }
     res.writeHead(503); res.end();
@@ -44,6 +46,11 @@ test('车端与机载只读接口可映射和代理，控制保持关闭', async
     const ugv = (await fetch(`${app.url}/api/v1/devices/UGV-01/telemetry`).then(r => r.json())).data;
     assert.equal(ugv.odom.speedMps, 0.2);
     assert.equal(ugv.batteryVoltage, null);
+    const details = (await fetch(`${app.url}/api/v1/devices/UGV-01/details`).then(r => r.json())).data;
+    assert.equal(details.sections.navigation.data.active, false);
+    assert.deepEqual(details.sections.navigation.data.goal, [0, 0]);
+    assert.deepEqual(details.sections.maps.data.names, ['map_20260924_224659']);
+    assert.equal(details.sections.mechanism.available, false);
     const uav = (await fetch(`${app.url}/api/v1/devices/UAV-01/telemetry`).then(r => r.json())).data;
     assert.equal(uav.flight.connected, true);
     assert.equal(uav.flight.source, 'flight-status-http');

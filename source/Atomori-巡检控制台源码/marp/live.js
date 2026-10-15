@@ -8,9 +8,12 @@
   let visionReceivedAt = 0;
   let latestUgv = {};
   let ugvReceivedAt = 0;
+  let latestUgvDetails = {};
+  let ugvDetailsReceivedAt = 0;
   let stopped = false;
   const pollingTimers = new Set();
-  const carMapName = 'map_20260924_224659';
+  let carMapName = 'map_20260924_224659';
+  let carMapCacheName = carMapName;
   const carMapSnapshot = '../assets/generated/console/ugv-lidar-map.png';
   let carMapObjectUrl = null, carMapBusy = false;
   const heightNumber = value => Number.isFinite(value) ? value.toFixed(2) + ' m' : '未上报';
@@ -124,6 +127,9 @@
     ? `X ${value[0].toFixed(2)} · Y ${value[1].toFixed(2)} m · 航向 ${(value[2] * 180 / Math.PI).toFixed(1)}°` : '位姿 —';
   function renderUgv() {
     const data = latestUgv;
+    const elapsed = (performance.now() - ugvReceivedAt) / 1000;
+    const detailsElapsed = (performance.now() - ugvDetailsReceivedAt) / 1000;
+    const snapshotFresh = AtomoriUgvView.snapshotFresh(data, elapsed);
     const speed = ugvValue(data.metrics?.speed);
     const odomFresh = fresh(ugvAge(data.odom?.ageS));
     show(metric('ugv', 1), null, 0, '%'); // 车端网关没有电量百分比字段
@@ -135,8 +141,9 @@
       const item = data.metrics?.[key];
       explainMetric(metric('ugv', index), item ? { ...item, ageS: ugvAge(item.ageS), valid: Number.isFinite(ugvValue(item)), reason: item.valid && !Number.isFinite(ugvValue(item)) ? '页面缓存已过期' : item.reason } : null);
     }
-    const muxFresh = fresh(ugvAge(data.topicAgesS?.ugv_control_mux));
-    const emergency = muxFresh && data.controlMux?.emergency_stop === true;
+    const muxFresh = snapshotFresh && fresh(ugvAge(data.topicAgesS?.ugv_control_mux));
+    const gatewayFresh = snapshotFresh && fresh(ugvAge(data.topicAgesS?.ugv_command_gateway));
+    const emergency = (muxFresh && data.controlMux?.emergency_stop === true) || (gatewayFresh && data.commandGateway?.emergency_stop === true);
     get('rover-state').textContent = !config.carConfigured ? '车端未配置' : emergency ? '急停状态' : Number.isFinite(speed) ? Math.abs(speed) < 0.02 ? '驻停' : '行驶中' : data.receivedAt ? '里程计过期/缺失' : '车端离线';
     get('rover-state').classList.toggle('amber', !Number.isFinite(speed) || emergency);
     const updated = data.observedAt ? new Date(data.observedAt) : null;
@@ -165,11 +172,12 @@
         : '数字传感器开关量，不代表气体浓度；过期或未上报显示 —';
     });
     const details = get('ugv-live-details');
-    if (details) {
-      const sensorText = (key, unit) => { const value = ugvValue(data.metrics?.[key]); return Number.isFinite(value) ? value.toFixed(2) + ' ' + unit : '—'; };
-      const authority = muxFresh ? ({ navigation: '自主导航', operator: '操作端', none: '无' }[data.controlMux?.authority] || escapeText(data.controlMux?.authority || '未知')) : '—';
-      const leadscrew = fresh(ugvAge(data.leadscrew?.age_s)) ? data.leadscrew?.status : null;
-      details.innerHTML = `<p>车辆状态：${escapeText(get('rover-state').textContent)} · ${escapeText(time)}</p><p>里程计：${escapeText(positionText(odomFresh ? data.odom?.pose : null))}</p><p>地图定位：${escapeText(positionText(localized ? data.localization.map_pose : null))} · ${localized ? escapeText(data.localization.confidence || '未知') : '不可用'}</p><p>环境温湿度：${sensorText('temperature', '°C')} / ${sensorText('humidity', '%RH')} · ${escapeText(data.environment?.error || '')}</p><p>超声测距：${sensorText('ultrasonic', 'm')} · 控制权：${authority}</p><p>推杆：${leadscrew ? escapeText(JSON.stringify(leadscrew)) : '—'}</p><p>电池电压：${Number.isFinite(data.batteryVoltage) ? '上游未提供样本年龄，暂不显示' : '未上报'}</p><p class="dialog-muted">车辆坐标来自车端，未映射到示意地图。MQ2 仅为数字触发信号；O₂、CO、H₂S 浓度未接入。</p>`;
+    if (details && get('action-dialog').open) AtomoriUgvView.renderDetails(details, data, latestUgvDetails, elapsed, detailsElapsed);
+    if (config.carConfigured) {
+      const dock = AtomoriUgvView.mechanismState(data, latestUgvDetails, elapsed, detailsElapsed);
+      get('dock-state').textContent = dock.state;
+      get('dock-subline').textContent = dock.subline;
+      document.querySelector('.dock-status').classList.remove('charging');
     }
   }
 
@@ -213,13 +221,17 @@
     pollingTimers.add(timer);
   }
 
-  function openUgvDetails() {
+  function openUgvDetails(group) {
     openDialog('无人车 · 实时遥测', '<div id="ugv-live-details"></div>');
     renderUgv();
+    const section = typeof group === 'string' ? get('ugv-live-details').querySelector(`[data-group="${group}"]`) : null;
+    if (section) { section.open = true; section.scrollIntoView({ block: 'start' }); }
   }
 
   let groundCameraId = 'front', groundObjectUrl = null, groundFrameAt = 0;
-  const groundNames = { front: '前视', rear: '后视' };
+  const groundNames = { front: '前视', rear: '后视', top: '俯视' };
+  const nextGroundCamera = () => groundCameraId === 'front' ? 'rear' : 'front';
+  let setGroundMode = () => {};
   const groundCamera = get('ground-camera');
   groundCamera.removeAttribute('src');
   groundCamera.style.visibility = 'hidden';
@@ -229,7 +241,7 @@
   async function refreshGroundCamera() {
     const selected = groundCameraId;
     const label = document.querySelector('.ground-feed .feed-label');
-    const status = selected === 'front' ? latestUgv.camera : latestUgv.cameraRear;
+    const status = selected === 'front' ? latestUgv.camera : selected === 'rear' ? latestUgv.cameraRear : latestUgv.cameraTop;
     try {
       if (status?.ready === false) throw new Error('暂无有效相机帧');
       const response = await fetch(`/api/v1/devices/UGV-01/cameras/${selected}.jpg?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
@@ -259,7 +271,7 @@
     const feed = document.querySelector('.ground-feed');
     const mapLayer = document.createElement('div');
     mapLayer.className = 'ground-map-layer';
-    mapLayer.innerHTML = '<img id="car-map-image" alt="车端激光雷达已保存地图"><div class="feed-top"><span class="feed-label">车端地图 · 激光雷达</span><span class="feed-quality">已保存地图</span></div><div class="feed-bottom"><span id="car-map-status">缓存地图 · 正在同步…</span><span>0.05 m/格</span></div>';
+    mapLayer.innerHTML = '<img id="car-map-image" alt="车端激光雷达地图"><div class="feed-top"><span class="feed-label">车端地图 · 激光雷达</span><span class="feed-quality">已保存地图</span></div><div class="feed-bottom"><span id="car-map-status">缓存地图 · 正在同步…</span><span id="car-map-resolution">0.05 m/格（缓存）</span></div>';
     mapLayer.title = carMapName + ' · 黑色障碍物，白色空闲，灰色未知';
     get('ground-camera').parentElement.append(mapLayer);
     get('car-map-image').src = carMapSnapshot;
@@ -272,11 +284,11 @@
     mapButton.id = 'ground-map-view';
     mapButton.textContent = '车端地图';
     tabs.append(mapButton);
-    const setGroundMode = map => {
+    setGroundMode = map => {
       feed.classList.toggle('show-car-map', map);
       mapButton.setAttribute('aria-pressed', String(map));
       cameraButton.setAttribute('aria-pressed', String(!map));
-      cameraButton.textContent = map ? '地面图传' : `切换${groundCameraId === 'front' ? '后视' : '前视'}`;
+      cameraButton.textContent = map ? '地面图传' : `切换${groundNames[nextGroundCamera()]}`;
       get('expand-ground').setAttribute('aria-label', map ? '放大车端地图' : '放大无人车图传');
     };
     mapButton.onclick = () => { setGroundMode(true); void refreshMap(); };
@@ -286,11 +298,14 @@
     detailButton.onclick = openUgvDetails;
     document.querySelector('.ugv-panel .telemetry-heading').append(detailButton);
     document.querySelectorAll('.environment-grid button').forEach(button => intercept(button, openUgvDetails));
+    intercept(document.querySelector('.business-nav [data-business="thermal"]'), () => openUgvDetails('status'));
+    intercept(document.querySelector('.business-nav [data-business="gas"]'), () => openUgvDetails('digital'));
+    intercept(document.querySelector('.business-nav [data-business="mapping"]'), () => openUgvDetails('map'));
     intercept(get('ground-view'), () => {
       if (feed.classList.contains('show-car-map')) { setGroundMode(false); return; }
-      groundCameraId = groundCameraId === 'front' ? 'rear' : 'front';
+      groundCameraId = nextGroundCamera();
       groundCamera.style.visibility = 'hidden';
-      get('ground-view').textContent = `切换${groundCameraId === 'front' ? '后视' : '前视'}`;
+      get('ground-view').textContent = `切换${groundNames[nextGroundCamera()]}`;
       document.querySelector('.ground-feed .feed-label').textContent = `车端${groundNames[groundCameraId]} · 等待画面`;
     });
     intercept(get('expand-ground'), () => {
@@ -307,37 +322,68 @@
     const scanButton = document.querySelector('.ugv-panel [data-business="mapping"]');
     scanButton.textContent = '实时雷达 ↗';
     intercept(scanButton, () => {
-      openDialog('无人车 · 实时雷达', '<canvas id="ugv-scan" width="600" height="400" aria-label="车端二维激光雷达扫描"></canvas><p id="ugv-scan-status">等待雷达数据…</p><p class="dialog-muted">车体坐标的二维激光扫描；前方朝上，左侧朝左。</p>');
+      openDialog('无人车 · 实时雷达', '<canvas id="ugv-scan" width="600" height="400" aria-label="车端二维激光雷达扫描"></canvas><p id="ugv-scan-status">等待雷达数据…</p><p id="ugv-escape-status"></p><p class="dialog-muted">车体坐标的二维激光扫描；前方朝上，左侧朝左。橙色折线为设备上报的脱困路径。</p>');
       void refreshScan();
     });
     void refreshGroundCamera();
   }
 
+  get('dialog-body').addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || !config.carConfigured) return;
+    const selectedMap = button.dataset.ugvMap;
+    const selectedCamera = button.dataset.ugvCamera;
+    if (selectedMap && /^[A-Za-z0-9_-]{1,128}$/.test(selectedMap)) {
+      closeDialog();
+      carMapName = selectedMap;
+      setGroundMode(true);
+      get('car-map-status').textContent = `正在请求 ${selectedMap} · 当前显示缓存 ${carMapCacheName}`;
+      void refreshMap();
+    } else if (Object.hasOwn(groundNames, selectedCamera)) {
+      closeDialog();
+      groundCameraId = selectedCamera;
+      groundFrameAt = 0;
+      groundCamera.style.visibility = 'hidden';
+      setGroundMode(false);
+      document.querySelector('.ground-feed .feed-label').textContent = `车端${groundNames[selectedCamera]} · 等待画面`;
+    }
+  });
+
   let scanBusy = false;
+  let scanReceivedAt = 0, scanAgeS = null;
   async function refreshMap() {
     const image = get('car-map-image');
     if (!image || carMapBusy || stopped) return;
     carMapBusy = true;
+    const selected = carMapName;
     let candidateUrl = null;
     try {
-      const response = await fetch(`/api/v1/maps/${carMapName}.png?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+      const response = await fetch(`/api/v1/maps/${selected}.png?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
       if (!response.ok || !response.headers.get('content-type')?.startsWith('image/png')) throw new Error('地图不可用');
       candidateUrl = URL.createObjectURL(await response.blob());
       const decoded = new Image(); decoded.src = candidateUrl;
       await decoded.decode();
-      if (stopped) return;
+      if (stopped || selected !== carMapName) return;
       const previousUrl = carMapObjectUrl;
       carMapObjectUrl = candidateUrl; candidateUrl = null;
+      carMapCacheName = selected;
       image.src = carMapObjectUrl;
       if (get('ugv-map-image')) get('ugv-map-image').src = carMapObjectUrl;
       if (previousUrl) URL.revokeObjectURL(previousUrl);
-      get('car-map-status').textContent = `车端已保存地图 · 同步 ${new Date().toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
+      const current = selected === 'current';
+      document.querySelector('.ground-map-layer .feed-quality').textContent = current ? '栅格快照' : '已保存地图';
+      document.querySelector('.ground-map-layer').title = selected + ' · 黑色障碍物，白色空闲，灰色未知';
+      get('car-map-status').textContent = `${current ? '当前栅格地图' : selected} · 同步 ${new Date().toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
+      const cruise = AtomoriUgvView.section(latestUgvDetails, 'autoCruise', (performance.now() - ugvDetailsReceivedAt) / 1000);
+      const info = current ? latestUgv.map?.info : cruise?.mapName === selected ? cruise.mapInfo : null;
+      get('car-map-resolution').textContent = Number.isFinite(info?.resolution) && info.resolution > 0 ? `${info.resolution} m/格` : '分辨率未上报';
     } catch {
-      if (!stopped) get('car-map-status').textContent = '车端地图不可用 · 显示已缓存地图';
+      if (!stopped && selected === carMapName) get('car-map-status').textContent = `车端地图不可用 · 显示已缓存地图 ${carMapCacheName}`;
     } finally {
       if (candidateUrl) URL.revokeObjectURL(candidateUrl);
       if (get('ugv-map-status')) get('ugv-map-status').textContent = get('car-map-status').textContent;
       carMapBusy = false;
+      if (!stopped && selected !== carMapName) void refreshMap();
     }
   }
   async function refreshScan() {
@@ -346,9 +392,12 @@
     scanBusy = true;
     const context = canvas.getContext('2d');
     try {
+      const started = performance.now();
       const data = (await AtomoriApi.request('/devices/UGV-01/scan', { timeoutMs: 3000 })).data;
       if (get('ugv-scan') !== canvas || stopped) return;
-      const valid = fresh(data?.age_s) && Array.isArray(data.points);
+      scanReceivedAt = performance.now();
+      scanAgeS = Number.isFinite(data?.age_s) ? data.age_s + (scanReceivedAt - started) / 1000 : null;
+      const valid = fresh(scanAgeS) && Array.isArray(data.points);
       context.clearRect(0, 0, canvas.width, canvas.height);
       const points = valid ? data.points.filter(point => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite) && point[1] > 0) : [];
       const radius = Math.max(2, Math.min(20, Number.isFinite(data.range_max) ? data.range_max : 10));
@@ -360,10 +409,17 @@
         const radians = angle * Math.PI / 180;
         context.fillRect(300 - Math.sin(radians) * distance * scale - 2, 200 - Math.cos(radians) * distance * scale - 2, 4, 4);
       }
+      const escapePath = valid && Array.isArray(data.escape_path) ? data.escape_path.filter(point => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite)) : [];
+      if (escapePath.length) {
+        context.beginPath(); context.moveTo(300, 200); context.strokeStyle = '#eab76d';
+        for (const [x, y] of escapePath) context.lineTo(300 - y * scale, 200 - x * scale);
+        context.stroke();
+      }
+      get('ugv-escape-status').textContent = escapePath.length ? `脱困路径 · ${escapePath.length} 个车体坐标点` : '脱困路径 · 未上报';
       context.fillStyle = '#eab76d'; context.fillRect(296, 196, 8, 8);
-      get('ugv-scan-status').textContent = valid ? `${points.length} 个有效扫描点 · 帧龄 ${data.age_s.toFixed(2)} s · 显示半径 ${radius} m` : '雷达数据过期/缺失';
+      get('ugv-scan-status').textContent = valid ? `${points.length} 个有效扫描点 · 帧龄 ${scanAgeS.toFixed(2)} s · 显示半径 ${radius} m` : '雷达数据过期/缺失';
     } catch {
-      if (get('ugv-scan') === canvas) { context.clearRect(0, 0, canvas.width, canvas.height); get('ugv-scan-status').textContent = '雷达离线'; }
+      if (get('ugv-scan') === canvas) { scanAgeS = null; context.clearRect(0, 0, canvas.width, canvas.height); get('ugv-scan-status').textContent = '雷达离线'; get('ugv-escape-status').textContent = ''; }
     } finally { scanBusy = false; }
   }
 
@@ -491,6 +547,12 @@
   }
   applyUgv({});
   if (config.carConfigured) void repeat(() => pollDevice('UGV-01', applyUgv, () => applyUgv({})), 1000);
+  if (config.carConfigured) void repeat(async () => {
+    try { latestUgvDetails = (await AtomoriApi.request('/devices/UGV-01/details', { timeoutMs: 4000 })).data || {}; }
+    catch { latestUgvDetails = {}; }
+    ugvDetailsReceivedAt = performance.now();
+    renderUgv();
+  }, 3000);
   if (config.uavVisionConfigured || config.uavFlightConfigured) void repeat(() => pollDevice('UAV-01', applyUav, () => applyUav({ flight: {} })), 1000);
   void repeat(async () => { await monitorCamera(); if (!stopped) applyUavCamera(); }, 2000);
   void repeat(refreshScan, 2000);
@@ -501,6 +563,12 @@
     if (performance.now() - groundFrameAt > 3000) {
       groundCamera.style.visibility = 'hidden';
       get('ugv-expanded-camera')?.removeAttribute('src');
+    }
+    const scan = get('ugv-scan');
+    if (scan && get('action-dialog').open && scanAgeS !== null && !fresh(scanAgeS + (performance.now() - scanReceivedAt) / 1000)) {
+      scan.getContext('2d').clearRect(0, 0, scan.width, scan.height);
+      get('ugv-scan-status').textContent = '雷达数据过期/缺失';
+      get('ugv-escape-status').textContent = '';
     }
   }, 250);
   applyUav({ flight: {} });

@@ -1,4 +1,5 @@
 import { IntegrationUnavailableError, unconfiguredIntegrations } from './integrations.js';
+import { normalizeUgvStatus, normalizeUgvDetail } from './ugv.js';
 
 function origin(value, name) {
   if (!value) return null;
@@ -121,40 +122,9 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
       const receivedAt = new Date().toISOString();
       if (deviceId === 'UGV-01') {
         if (!car) unavailable('车端网关');
+        const startedAt = performance.now();
         const raw = await requestJson(car, '/api/status');
-        const odom = object(raw.odom);
-        const gps = object(raw.gps);
-        const ages = object(raw.topic_ages_s);
-        const environment = object(raw.environment);
-        const environmentAvailable = environment.available === true && environment.stale === false;
-        const metrics = {
-          speed: ugvMetric(odom.speed_mps, ages.odom, 'm/s', '/odom.twist', 2),
-          temperature: ugvMetric(environment.temperature_c, environment.age_s, '°C', 'environment.temperature_c', 10, { available: environmentAvailable, min: -40, max: 80 }),
-          humidity: ugvMetric(environment.humidity_percent, environment.age_s, '%RH', 'environment.humidity_percent', 10, { available: environmentAvailable, min: 0, max: 100 }),
-          ultrasonic: ugvMetric(object(raw.ultrasonic).range, object(raw.ultrasonic).age_s, 'm', '/ultrasonic/range', 2, { min: 0 })
-        };
-        const digital = Object.fromEntries(['tilt', 'flame', 'mq2'].map(key => {
-          const sensor = object(object(environment.digital)[key]);
-          const ageS = finite(sensor.age_s);
-          const valid = sensor.available === true && sensor.stale === false && ageS !== null && ageS >= 0 && ageS <= 2 && typeof sensor.triggered === 'boolean';
-          return [key, { triggered: valid ? sensor.triggered : null, valid, ageS, maxAgeS: 2, source: `environment.digital.${key}` }];
-        }));
-        const observedMs = finite(raw.server_time_ms);
-        const observed = observedMs === null ? null : new Date(observedMs);
-        return {
-          deviceId, source: 'car-rpi-deploy', receivedAt: new Date().toISOString(),
-          observedAt: observed && Number.isFinite(observed.getTime()) ? observed.toISOString() : null,
-          odom: { pose: pose(odom.pose), speedMps: metrics.speed.value, ageS: finite(ages.odom) },
-          metrics, topicAgesS: Object.fromEntries(Object.entries(ages).map(([key, age]) => [key, finite(age)])),
-          environment: { temperatureC: metrics.temperature.value, humidityPercent: metrics.humidity.value, ageS: finite(environment.age_s), available: environmentAvailable, digital, error: typeof environment.error === 'string' ? environment.error : null },
-          ultrasonic: { rangeM: metrics.ultrasonic.value, ageS: metrics.ultrasonic.ageS },
-          gps: { fix: gps.fix ?? null, ageS: finite(gps.age_s) },
-          batteryVoltage: finite(raw.battery_voltage),
-          camera: object(raw.camera), cameraRear: object(raw.camera_rear), cameraTop: object(raw.camera_top),
-          localization: object(raw.localization), map: object(raw.map),
-          mapping: object(raw.mapping), leadscrew: object(raw.leadscrew),
-          controlMux: object(raw.ugv_control_mux), commandGateway: object(raw.ugv_command_gateway)
-        };
+        return normalizeUgvStatus(raw, (performance.now() - startedAt) / 1000);
       }
       if (deviceId === 'UAV-01') {
         if (!vision && !flightStatus) unavailable('机载状态服务');
@@ -247,6 +217,26 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
         };
       }
       return unconfiguredIntegrations.telemetry(deviceId);
+    },
+    async vehicleDetails() {
+      if (!car) unavailable('车端网关');
+      const groupStartedAt = performance.now();
+      const routes = { navigation: '/api/nav/status', autoCruise: '/api/auto_cruise/status', maps: '/api/maps', mechanism: '/api/leadscrew/manual/status' };
+      // 独立详情查询不会拖慢 /api/status 的一秒遥测轮询；旧网关缺少某项只影响该项。
+      const sections = await Promise.all(Object.entries(routes).map(async ([name, path]) => {
+        const startedAt = performance.now();
+        try {
+          const raw = await requestJson(car, path);
+          return [name, { available: true, receivedAt: new Date().toISOString(), ageS: (performance.now() - startedAt) / 1000,
+            maxAgeS: 6, data: normalizeUgvDetail(name, raw), raw }];
+        } catch (error) {
+          return [name, { available: false, data: null, error: error.code || 'UPSTREAM_UNAVAILABLE' }];
+        }
+      }));
+      // 同批其他资源等待期间也会使先返回的查询快照变老。
+      const totalAgeS = (performance.now() - groupStartedAt) / 1000;
+      return { deviceId: 'UGV-01', source: 'car-rpi-deploy', receivedAt: new Date().toISOString(),
+        sections: Object.fromEntries(sections.map(([name, value]) => [name, value.available ? { ...value, ageS: totalAgeS } : value])) };
     },
     async stream(deviceId) {
       const streams = deviceId === 'UGV-01' && car ? [
