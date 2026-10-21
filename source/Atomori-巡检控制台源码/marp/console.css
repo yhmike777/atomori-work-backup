@@ -41,3 +41,44 @@
 
 /* 新增参数留在原车辆详情弹窗，不改变控制台布局。 */
 .ugv-detail-group{border-top:1px solid #264157;padding:10px 0}.ugv-detail-group>summary,.ugv-path>summary{cursor:pointer;color:#afcbe0;font-size:12px}.ugv-detail-group .business-list{margin-top:8px}.ugv-detail-group .business-list>div{gap:18px}.ugv-detail-group .business-list b{max-width:65%;text-align:right;overflow-wrap:anywhere}.ugv-detail-group table{table-layout:fixed}.ugv-detail-group td,.ugv-detail-group th{overflow-wrap:anywhere;padding:8px 5px!important}.ugv-detail-toolbar{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.ugv-detail-toolbar button{padding:5px 9px;border:1px solid #355a74;border-radius:3px;color:#afcbe0;font-size:11px;overflow-wrap:anywhere}.ugv-raw{white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;background:#071827;border:1px solid #264157;font-size:10px;max-height:300px;overflow:auto}.ugv-path{margin-top:10px}
+
+/* 矮窗口内侧栏可滚动，保留中央态势图和底部操作区。 */
+.device-panel{overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#60738b #15202c;scrollbar-gutter:stable}
+.device-panel:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.device-panel .panel-heading{position:sticky;top:0;z-index:3;background:var(--surface);height:auto;min-height:43px;padding:8px 0;flex-wrap:wrap}
+.device-panel .instrument-row{height:auto;min-height:104px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.device-panel .signal-block{min-width:0}
+.device-panel .signal-block p{flex-wrap:wrap;gap:2px 6px;line-height:1.5;overflow-wrap:anywhere}
+.device-panel .environment-grid{height:auto;min-height:76px;padding-bottom:8px}
+.ugv-panel .link-topology{height:auto;min-height:28px;overflow:visible;white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+
+/* 窄屏不再把遥测与姿态仪压进同一行，卡片随内容展开。 */
+@media(max-width:1150px){
+  .app-shell{height:auto;min-height:100dvh;overflow:visible;padding-bottom:12px}
+  .workspace{flex:none;grid-template-rows:clamp(367px,48dvh,520px) auto;align-items:stretch}
+  .device-panel{display:flex;height:auto;overflow:visible;padding:0 12px 12px;scrollbar-gutter:auto}
+  .device-panel .panel-heading{position:static;min-height:43px}
+  .device-panel .camera-feed{flex:none;height:clamp(160px,22vw,240px);min-height:160px}
+  .device-panel .camera-toolbar{height:36px}
+  .device-panel .telemetry-heading{height:32px}
+  .device-panel .metric-grid{height:104px;padding:5px 0 9px;gap:8px 15px;border-bottom:1px solid var(--line)}
+  .device-panel .metric{gap:3px}
+  .device-panel .metric>span{font-size:11px}
+  .device-panel .metric strong{font-size:25px}
+  .device-panel .metric strong small{font-size:10px;margin-left:3px}
+  .device-panel .instrument-row{display:grid;gap:14px;padding-top:8px}
+  .device-panel .attitude-block{width:auto}
+  .device-panel .attitude-block svg{width:95px;height:62px}
+  .device-panel .attitude-block>span{font-size:9px;line-height:1.7;white-space:normal}
+  .device-panel .signal-block>div{display:flex;flex-wrap:wrap;gap:4px;align-items:baseline}
+  .device-panel .signal-block>div span{font-size:10px}
+  .device-panel .signal-block strong{font-size:24px;margin:0}
+  .device-panel .signal-block small{font-size:9px}
+  .device-panel .signal-block p{font-size:9px}
+  .device-panel .mini-trend{height:25px}
+  .device-panel .environment-grid{padding-top:12px;gap:10px}
+  .device-panel .environment-grid span{font-size:11px}
+  .device-panel .environment-grid b{font-size:22px}
+  .device-panel .environment-grid small{display:inline;font-size:9px;margin-left:2px}
+  .ugv-panel .link-topology{align-self:stretch;font-size:9px}
+}

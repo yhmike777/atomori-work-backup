@@ -14,7 +14,7 @@ if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('PORT å
 
 const store = new RecordStore(dataFile);
 await store.init();
-const integrations = createUpstreamIntegrations({ carUrl: process.env.ATOMORI_CAR_URL, uavVisionUrl: process.env.ATOMORI_UAV_VISION_URL, uavFlightUrl: process.env.ATOMORI_UAV_FLIGHT_URL, missionPlannerUrl: process.env.ATOMORI_MISSION_PLANNER_URL });
+const integrations = createUpstreamIntegrations({ carUrl: process.env.ATOMORI_CAR_URL, uavVisionUrl: process.env.ATOMORI_UAV_VISION_URL, uavFlightUrl: process.env.ATOMORI_UAV_FLIGHT_URL, missionPlannerUrl: process.env.ATOMORI_MISSION_PLANNER_URL, liveOnly: process.env.ATOMORI_LIVE_ONLY === 'true' });
 const server = createServer(createApp({ store, webRoot, integrations }));
 server.listen(port, host, () => {
   console.log(`Atomori API: http://${host}:${server.address().port}/`);

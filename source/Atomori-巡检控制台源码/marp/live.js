@@ -4,6 +4,7 @@
 (async () => {
   const get = id => document.getElementById(id);
   let latestFlight = {};
+  let uavReceivedAt = 0;
   let latestVision = {};
   let visionReceivedAt = 0;
   let latestUgv = {};
@@ -25,20 +26,38 @@
     AtomoriRuntime.config = config;
     setReadOnlyMode(config.mode !== 'demo');
   } catch {
+    config = { liveOnly: true };
     setReadOnlyMode(true);
+    document.querySelectorAll('.device-panel .metric-grid strong,.relative-position dd').forEach(element => { element.textContent = '—'; });
+    for (const id of ['main-camera', 'ground-camera']) { get(id).removeAttribute('src'); get(id).alt = '未收到真实图像'; }
+    document.querySelectorAll('.camera-feed .feed-quality').forEach(element => { element.textContent = '未连接'; });
+    document.querySelectorAll('.camera-feed .feed-bottom').forEach(element => { element.textContent = '未收到设备图像'; });
+    for (const id of ['relative-drone', 'relative-vector']) get(id).style.visibility = 'hidden';
+    get('drone-state').textContent = get('rover-state').textContent = '连接未确认';
+    get('vision-state').textContent = '视觉未连接';
+    get('dock-state').textContent = '补能未接入';
+    get('dock-subline').textContent = '落位与充电电气数据未接入';
+    document.querySelectorAll('.environment-grid b').forEach(element => { element.textContent = '—'; });
+    document.querySelectorAll('.device-panel .telemetry-heading small').forEach(element => { element.textContent = '数据不可用'; });
+    document.querySelector('.attitude-block span').textContent = '横滚 —　俯仰 —';
+    document.querySelector('.attitude-horizon').style.visibility = 'hidden';
+    document.querySelector('.signal-block strong').textContent = '—';
+    document.querySelector('.signal-block .mini-trend').style.display = 'none';
+    document.querySelectorAll('.signal-block p').forEach(element => { element.textContent = '未收到真实数据'; });
+    document.querySelectorAll('[data-camera-tab],#expand-camera,#ground-view,#expand-ground').forEach(element => { element.disabled = true; });
+    document.querySelectorAll('[data-business],.asset-pin,#instrument-finding,[data-nav="devices"],#site-details').forEach(element => { element.disabled = true; });
+    applyLiveOnlyLabels();
     document.querySelector('.demo-state').textContent='配置不可用 · 控制关闭';
     return;
   }
   if (config.mode !== 'upstream-readonly') return;
 
   document.querySelector('.demo-state').textContent = '上游只读 · 本机业务';
-  document.querySelector('.system-footer span:first-child').textContent = '上游只读 · 演示任务 / 本机业务记录 · 设备来源未验证';
   document.querySelector('.spatial-heading h2 span').textContent = '演示地图 · 未与车端地图配准';
   document.querySelector('.running-label').textContent = '演示任务';
   document.querySelector('.map-hint').textContent = '示意图与点位数值为样本';
   document.querySelector('.map-legend span:last-child').textContent = '设备状态以遥测为准';
   document.querySelector('.link-topology').textContent = '通信拓扑未接入';
-  document.querySelector('.system-footer span:last-child').textContent = '定位与链路状态以实际接入数据为准';
   get('dock-state').textContent = '补能未接入';
   get('dock-subline').textContent = '落位与充电电气数据未接入';
 
@@ -63,12 +82,52 @@
     element.title = item ? `${item.source} · ${item.unit} · ${item.valid ? '有效上报' : item.reason} · 数据年龄 ${Number.isFinite(item.ageS) ? item.ageS.toFixed(2)+' s' : '未提供'}` : '上游尚未提供此测量字段';
   };
 
+  function applyLiveOnlyLabels() {
+    if (!config.liveOnly) return;
+    document.querySelector('.demo-state').textContent = '真实数据 · 只读';
+    document.querySelector('.spatial-heading h2 span').textContent = '管廊示意图 · 未与实机配准';
+    document.querySelector('.map-hint').textContent = '示意图无实时设施测量数据';
+    document.querySelectorAll('.spatial-kpis > div > b').forEach(element => { element.textContent = '—'; });
+    document.querySelectorAll('.asset-pin').forEach(element => {
+      element.querySelectorAll('em').forEach(value => { value.textContent = '测量未接入'; });
+      element.setAttribute('aria-label', `${element.dataset.sitePoint || element.querySelector('span')?.firstChild?.textContent || '设施'}，测量未接入`);
+    });
+    document.querySelectorAll('.map-marker,.twin-route,#map-route,#map-rover,#map-drone,#map-ground-fov,#map-air-fov,#map-uav-label').forEach(element => { element.style.visibility = 'hidden'; });
+    get('instrument-summary').textContent = '测量未接入';
+    get('mission-location').textContent = '实时任务位置未接入';
+    get('mission-id').textContent = '实机任务未接入';
+    document.querySelector('.mission-name > strong').firstChild.textContent = '实机任务 ';
+    document.querySelector('.running-label').textContent = '未接入';
+    get('progress-count').textContent = '—';
+    document.querySelector('.mission-completion > span').lastChild.textContent = ' / —';
+    get('progress-bar').style.width = '0%';
+    document.querySelectorAll('.mission-stages > div').forEach((element, index) => { element.classList.remove('done', 'current'); element.querySelector('i').textContent = String(index + 1); });
+    get('target-bracket').style.visibility = 'hidden';
+    const image = get('car-map-image');
+    if (image && !carMapObjectUrl) {
+      image.style.visibility = 'hidden';
+      get('car-map-status').textContent = '车端地图未连接';
+      get('car-map-resolution').textContent = '—';
+    }
+  }
+  if (config.liveOnly) {
+    applyLiveOnlyLabels();
+    for (const key of config.carConfigured ? ['surface', 'instrument', 'acoustic'] : ['surface', 'instrument', 'acoustic', 'thermal', 'gas', 'mapping']) {
+      document.querySelectorAll(`[data-business="${key}"]`).forEach(button => intercept(button, () => openDialog('实机测量未接入', '<p>该设备未提供可核验的实时测量数据。</p><p class="dialog-muted">实时模式不使用样本图片、仪表读数或声学频谱替代设备数据。</p>')));
+    }
+    intercept(get('instrument-finding'), () => openDialog('仪表测量未接入', '<p>尚未收到真实仪表测量数据。</p>'));
+    document.querySelectorAll('.asset-pin').forEach(button => intercept(button, () => openDialog('设施测量未接入', '<p>尚未收到该设施的真实测量或图像数据。</p>')));
+    if (!config.carConfigured) {
+      for (const id of ['ground-view', 'expand-ground']) intercept(get(id), () => openDialog('车端未连接', '<p>小车接口当前保持断开，没有实时图像。</p>'));
+    }
+  }
+
   function applyVideoTiming() {
     const block = document.querySelector('.signal-block');
     const downview = config.uavVisionConfigured && document.querySelector('[data-camera-tab][aria-pressed="true"]')?.dataset.cameraTab === 'dock';
     const age = latestVision.frameAgeMs;
     const valid = downview && latestVision.sensor === 'ov9281' && Number.isFinite(latestVision.captureFps)
-      && latestVision.captureFps > 0 && Number.isFinite(age) && fresh(age / 1000);
+      && latestVision.captureFps > 0 && Number.isFinite(age) && fresh(age / 1000 + (performance.now() - visionReceivedAt) / 1000);
     block.querySelector('div > span').textContent = downview ? '视觉帧龄' : '图传延迟';
     show(block.querySelector('strong'), valid ? age : null, 0, 'ms');
     block.querySelector('strong').title = downview
@@ -182,15 +241,25 @@
   }
 
   function applyUav(data) {
-    const flight = data.flight || {};
-    latestFlight = flight;
+    latestFlight = data.flight || {};
     latestVision = data.vision || {};
-    visionReceivedAt = performance.now();
+    uavReceivedAt = visionReceivedAt = performance.now();
+    renderUav();
+  }
+
+  function renderUav() {
+    const flight = latestFlight;
+    const elapsed = (performance.now() - uavReceivedAt) / 1000;
+    const metricValue = (key, value) => {
+      const item = flight.metrics?.[key];
+      const age = Number.isFinite(item?.ageS) ? item.ageS : item?.ageBasis === 'upstream_bridge_validity_gate' ? flight.stateAgeS : null;
+      return item?.valid === true && Number.isFinite(age) && age >= 0 && age + elapsed <= item.maxAgeS ? value : null;
+    };
     renderRelativePosition();
     applyVideoTiming();
-    const valid = flight.connected && fresh(flight.stateAgeS);
-    const roll = valid && flight.metrics?.roll?.valid === true ? flight.rollDeg : null;
-    const pitch = valid && flight.metrics?.pitch?.valid === true ? flight.pitchDeg : null;
+    const valid = flight.connected === true && fresh(Number.isFinite(flight.stateAgeS) ? flight.stateAgeS + elapsed : null);
+    const roll = valid ? metricValue('roll', flight.rollDeg) : null;
+    const pitch = valid ? metricValue('pitch', flight.pitchDeg) : null;
     const attitudeValid = Number.isFinite(roll) && Number.isFinite(pitch);
     const attitudeBlock = document.querySelector('.attitude-block');
     attitudeBlock.querySelector('span').innerHTML = `横滚 <b>${Number.isFinite(roll) ? roll.toFixed(1) + '°' : '—'}</b>　俯仰 <b>${Number.isFinite(pitch) ? pitch.toFixed(1) + '°' : '—'}</b>`;
@@ -202,13 +271,13 @@
     horizon.setAttribute('transform', attitudeValid ? `rotate(${-roll} 70 47) translate(0 ${pitch * 0.7})` : '');
     attitudeBlock.querySelector('svg').setAttribute('aria-label', attitudeValid ? `无人机姿态：横滚 ${roll.toFixed(1)} 度，俯仰 ${pitch.toFixed(1)} 度` : '无人机姿态数据不可用');
     attitudeBlock.title = '飞控融合姿态；横滚正值为向右倾斜，俯仰正值为抬头；姿态样本超过 0.5 秒或飞控断连时清空。';
-    show(metric('uav', 1), valid ? flight.batteryPercent : null, 0, '%');
-    show(get('uav-voltage'), valid ? flight.batteryVoltage : null, 2, 'V');
-    show(get('range-value'), valid ? flight.rangefinderM : null, 2, 'm');
+    show(metric('uav', 1), valid ? metricValue('batteryPercent', flight.batteryPercent) : null, 0, '%');
+    show(get('uav-voltage'), valid ? metricValue('batteryVoltage', flight.batteryVoltage) : null, 2, 'V');
+    show(get('range-value'), valid ? metricValue('rangefinder', flight.rangefinderM) : null, 2, 'm');
     for(const [element,key] of [[metric('uav',1),'batteryPercent'],[get('uav-voltage'),'batteryVoltage'],[get('range-value'),'rangefinder']])explainMetric(element,flight.metrics?.[key]);
     const height = get('uav-height');
     height.parentElement.querySelector('span').textContent='离地高度';
-    show(height, valid ? flight.rangefinderM : null, 2, 'm');
+    show(height, valid ? metricValue('rangefinder', flight.rangefinderM) : null, 2, 'm');
     explainMetric(height, flight.metrics?.rangefinder);
     height.title += ' · 实时下视测距，以传感器为基准；未补偿安装偏移与机体倾斜';
     get('drone-state').textContent = !config.uavVisionConfigured && !config.uavFlightConfigured ? '机载未连接' : valid ? `${flight.mode} · ${flight.armed ? '已解锁' : '未解锁'}` : '飞控离线/过期';
@@ -368,6 +437,7 @@
       carMapObjectUrl = candidateUrl; candidateUrl = null;
       carMapCacheName = selected;
       image.src = carMapObjectUrl;
+      image.style.visibility = 'visible';
       if (get('ugv-map-image')) get('ugv-map-image').src = carMapObjectUrl;
       if (previousUrl) URL.revokeObjectURL(previousUrl);
       const current = selected === 'current';
@@ -436,7 +506,7 @@
   }
   function desiredLiveCamera() {
     const tab = document.querySelector('[data-camera-tab][aria-pressed="true"]')?.dataset.cameraTab;
-    return tab === 'uav' && config.carConfigured ? ['a8.mjpg', 'UAV 前视 · 上游图传']
+    return tab === 'uav' && config.carConfigured && (!config.liveOnly || config.uavVisionConfigured) ? ['a8.mjpg', 'UAV 前视 · 上游图传']
       : tab === 'dock' && config.uavVisionConfigured ? ['ov9281.mjpg', 'OV9281 · 下视预览'] : null;
   }
   function openLiveCamera(live) {
@@ -477,6 +547,12 @@
       const tab = document.querySelector('[data-camera-tab][aria-pressed="true"]')?.dataset.cameraTab;
       get('camera-name').textContent = tab === 'thermal' ? '热成像 · 演示样本' : '可见光 · 演示样本';
       get('camera-quality').textContent = '未接入';
+      if (config.liveOnly) {
+        camera.removeAttribute('src');
+        camera.alt = '真实图像未接入';
+        get('camera-name').textContent = tab === 'thermal' ? '热成像 · 未接入' : '实时图像 · 未接入';
+        get('camera-meta').textContent = '无可核验的实时画面';
+      }
       if (tab === 'dock') {
         camera.removeAttribute('src');
         camera.alt = '下视未连接';
@@ -515,9 +591,16 @@
 
   get('expand-camera').addEventListener('click', event => {
     const tab = document.querySelector('[data-camera-tab][aria-pressed="true"]')?.dataset.cameraTab;
-    const url = tab === 'uav' && config.carConfigured ? '/api/v1/devices/UAV-01/cameras/a8.mjpg'
+    const url = tab === 'uav' && config.carConfigured && (!config.liveOnly || config.uavVisionConfigured) ? '/api/v1/devices/UAV-01/cameras/a8.mjpg'
       : tab === 'dock' && config.uavVisionConfigured ? '/api/v1/devices/UAV-01/cameras/ov9281.mjpg' : null;
-    if (!url) return;
+    if (!url) {
+      if (config.liveOnly) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        openDialog('无实时图像', '<p>当前相机未接入真实图传，未显示样本图片。</p>');
+      }
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     openDialog('UAV 上游图传', `<img src="${url}" alt="无人机上游图传"><p class="dialog-muted">只读图传；画面来源和设备状态须现场核验。</p>`);
@@ -559,7 +642,8 @@
   if (config.carConfigured) void repeat(refreshMap, 10000);
   const ugvWatchdog = setInterval(() => {
     renderUgv();
-    renderRelativePosition();
+    renderUav();
+    applyLiveOnlyLabels();
     if (performance.now() - groundFrameAt > 3000) {
       groundCamera.style.visibility = 'hidden';
       get('ugv-expanded-camera')?.removeAttribute('src');

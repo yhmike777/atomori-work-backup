@@ -65,7 +65,7 @@ function flightMetric(flight, key, unit, source, maxAgeS, { legacy = false, min 
     ageS, maxAgeS, ageBasis: meta.age_basis || (legacy ? 'upstream_bridge_validity_gate' : 'unreported'), valid: reason === 'VALID', reason };
 }
 
-export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl, missionPlannerUrl, fetchImpl = fetch }) {
+export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl, missionPlannerUrl, liveOnly = false, fetchImpl = fetch }) {
   const car = origin(carUrl, 'ATOMORI_CAR_URL');
   const vision = origin(uavVisionUrl, 'ATOMORI_UAV_VISION_URL');
   const flightStatus = origin(uavFlightUrl, 'ATOMORI_UAV_FLIGHT_URL');
@@ -109,7 +109,7 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
   }
 
   return {
-    status() { return { carConfigured: !!car, uavVisionConfigured: !!vision, uavFlightConfigured: !!flightStatus, missionPlannerConfigured: !!missionPlanner, mode: car || vision || flightStatus || missionPlanner ? 'upstream-readonly' : 'demo', commandsEnabled: false }; },
+    status() { return { carConfigured: !!car, uavVisionConfigured: !!vision, uavFlightConfigured: !!flightStatus, missionPlannerConfigured: !!missionPlanner, liveOnly: liveOnly === true, mode: car || vision || flightStatus || missionPlanner ? 'upstream-readonly' : 'demo', commandsEnabled: false }; },
     async missionPlanner() {
       if (!missionPlanner) unavailable('Mission Planner MAVLink 接收服务');
       const snapshot = await requestJson(missionPlanner, '/api/status');

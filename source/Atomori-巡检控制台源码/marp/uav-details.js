@@ -17,6 +17,7 @@
   ];
   const primary = ['batteryPercent', 'batteryVoltage', 'batteryCurrent', 'relativeAltitude', 'groundspeed', 'airspeed'];
   let snapshot = null, config = null, receivedAt = 0, lastResponse = null, errorMessage = '', busy = false, stopped = false, pollTimer, renderTimer;
+  const fromRpi = () => config?.liveOnly === true && config.uavFlightConfigured === true;
   const elapsed = () => snapshot ? Math.max(0, (performance.now() - receivedAt) / 1000) : 0;
   const age = value => finite(value) && value >= 0 ? value + elapsed() : null;
   const stateFresh = () => snapshot?.flight?.connected === true && finite(age(snapshot.flight.stateAgeS)) && age(snapshot.flight.stateAgeS) <= 2;
@@ -26,14 +27,29 @@
     const ageS = age(item?.ageS);
     const valid = stateFresh() && item?.valid === true && finite(item.value) && finite(ageS) && finite(item.maxAgeS) && ageS <= item.maxAgeS;
     return { value: valid ? item.value : null, ageS, source: item?.source || '未收到该 MAVLink 消息', valid,
-      reason: valid ? '实时有效' : !snapshot ? errorMessage ? '服务不可用' : '等待数据' : !snapshot.transport?.acceptedMessages ? '等待转发' : !stateFresh() ? '飞控断连 / 过期' : item?.valid ? '页面缓存已过期' : reasonText(item?.reason) };
+      reason: valid ? '实时有效' : !snapshot ? errorMessage ? '服务不可用' : '等待数据' : !fromRpi() && !snapshot.transport?.acceptedMessages ? '等待转发' : !stateFresh() ? '飞控断连 / 过期' : item?.valid ? '页面缓存已过期' : reasonText(item?.reason) };
   }
   function render() {
     const fresh = stateFresh(), flight = snapshot?.flight || {}, details = flight.details || {};
     const banner = get('flight-banner');
     banner.textContent = errorMessage ? `Mission Planner 遥测不可用：${errorMessage}；正在自动重试。` : !config ? '正在连接 Mission Planner 接收服务…' : !snapshot ? '正在读取 Mission Planner 转发数据…' : fresh ? 'Mission Planner MAVLink 转发已接收 · 正在显示飞控数据。' : snapshot.transport?.acceptedMessages ? 'Mission Planner 转发已中断或飞控心跳过期，数值已清空。' : '接收服务已就绪 · 等待另一台电脑转发 Mission Planner MAVLink 数据。';
+    if (fromRpi()) {
+      document.title = 'UAV-01 树莓派实时遥测 · Atomori';
+      document.querySelector('.eyebrow').textContent = 'UAV-01 / RASPBERRY PI';
+      document.querySelector('.subtitle').textContent = '机载 HTTP 只读遥测 · 有效数据与来源';
+      document.querySelector('.connection-card h2').textContent = '树莓派遥测链路';
+      get('connection-note').textContent = '直接读取已配置的机载只读遥测桥。缺失或过期数据不显示；未发送解锁、起飞或参数修改命令。';
+      get('attitude-empty').textContent = '未收到有效姿态数据';
+      document.querySelector('.telemetry-card .card-note').textContent = '高度与测距采用不同基准。样本年龄来自机载桥接收计时，并累计页面等待时间，不代表端到端延迟。';
+      const columns = document.querySelectorAll('.telemetry-table thead th');
+      columns[3].textContent = '样本年龄（桥接收）';
+      columns[4].textContent = 'ROS 数据来源';
+      get('mirror-source').parentElement.querySelector('dt').textContent = '当前遥测来源';
+      get('mirror-count').parentElement.querySelector('dt').textContent = '消息计数（未提供）';
+      banner.textContent = errorMessage ? `树莓派遥测不可用：${errorMessage}；正在自动重试。` : fresh ? '已接收树莓派只读遥测 · 仅显示有效上报。' : '树莓派遥测未返回有效飞控心跳，过期数值已清空。';
+    }
     banner.classList.toggle('is-connected', fresh);
-    get('connection-badge').textContent = fresh ? '飞控在线' : snapshot?.transport?.acceptedMessages ? '心跳已过期' : '等待转发';
+    get('connection-badge').textContent = fresh ? '飞控在线' : fromRpi() ? '飞控离线/过期' : snapshot?.transport?.acceptedMessages ? '心跳已过期' : '等待转发';
     get('connection-badge').classList.toggle('is-connected', fresh);
     const systemStates = { 0: '未初始化', 1: '启动中', 2: '校准中', 3: '待机', 4: '运行中', 5: '严重异常', 6: '紧急状态', 7: '关机中', 8: '飞行终止' };
     const gpsFix = metric('gpsFix'), satellites = metric('satellites');
@@ -78,6 +94,10 @@
     get('flight-alerts').innerHTML = alerts.length ? alerts.slice().reverse().map(item => `<p><span>${age(item.ageS).toFixed(1)} s 前 · 等级 ${escape(item.severity)}</span>${escape(item.text)}</p>`).join('') : '最近 30 秒没有收到有效状态消息';
     get('mirror-source').textContent = snapshot?.transport?.peerIp ? `${snapshot.transport.peerIp} · SYS ${snapshot.transport.systemId} / COMP ${snapshot.transport.componentId}` : '尚未收到转发';
     get('mirror-count').textContent = String(snapshot?.transport?.acceptedMessages ?? 0);
+    if (fromRpi()) {
+      get('mirror-source').textContent = snapshot?.source === 'uav-rpi-deploy' ? '机载 flight-status-http' : '等待机载遥测';
+      get('mirror-count').textContent = '—';
+    }
     get('last-response').textContent = lastResponse ? lastResponse.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) + '（本机接收）' : '—';
     get('poll-status').textContent = document.hidden ? '页面隐藏 · 暂停请求' : busy ? '读取中' : errorMessage ? '自动重试中' : '自动刷新';
   }
@@ -87,12 +107,14 @@
     try {
       if (!config) config = (await AtomoriApi.request('/integrations', { timeoutMs: 4000 })).data;
       if (!config || !['demo', 'upstream-readonly'].includes(config.mode)) throw new Error('遥测配置无效');
-      if (!config.missionPlannerConfigured) {
+      if (!fromRpi() && !config.missionPlannerConfigured) {
         snapshot = null; errorMessage = ''; config = null;
         throw new Error('Mission Planner 接收服务尚未配置');
       }
-      const result = await AtomoriApi.request('/devices/UAV-01/mission-planner', { timeoutMs: 4000 });
-      if (!result?.data?.flight || result.data.deviceId !== 'UAV-01' || result.data.source !== 'mission-planner-mavlink') throw new Error('Mission Planner 遥测响应无效');
+      const result = await AtomoriApi.request(fromRpi() ? '/devices/UAV-01/telemetry' : '/devices/UAV-01/mission-planner', { timeoutMs: 4000 });
+      const expectedSource = fromRpi() ? 'uav-rpi-deploy' : 'mission-planner-mavlink';
+      if (!result?.data?.flight || result.data.deviceId !== 'UAV-01' || result.data.source !== expectedSource) throw new Error('遥测响应来源无效');
+      if (fromRpi()) result.data.flight.metrics = { ...result.data.flight.metrics, ...result.data.flight.details?.metrics };
       snapshot = result.data; receivedAt = performance.now(); lastResponse = new Date(); errorMessage = '';
       get('raw-flight').textContent = JSON.stringify(snapshot, null, 2);
     } catch (error) {
