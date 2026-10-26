@@ -14,6 +14,17 @@ window.AtomoriUgvView = (() => {
     const item = data.metrics?.[key];
     return item?.valid === true && fresh(item.ageS, elapsed, item.maxAgeS) ? item.value : null;
   };
+  const soundState = (data, elapsed) => {
+    const sensor = data.environment?.digital?.sound;
+    const available = snapshotFresh(data, elapsed) && sensor?.available === true && fresh(sensor.ageS, elapsed);
+    const abnormal = available && sensor.valid === true && sensor.triggered === true;
+    const defaulted = available && sensor.valid !== true;
+    return { text: available ? abnormal ? '异常' : '正常' : '—',
+      color: available ? abnormal ? 'var(--red)' : 'var(--green)' : 'var(--muted)',
+      title: !available ? '声音传感器未连接或数据过期'
+        : defaulted ? '默认正常；声音传感器在线，尚未配置触发判定，未上报分贝值'
+        : `声音传感器${abnormal ? '已触发' : '未触发'}；数字触发状态，不代表分贝测量` };
+  };
   const section = (details, name, elapsed) => {
     const item = details?.sections?.[name];
     return item?.available === true && fresh(item.ageS, elapsed, item.maxAgeS) ? item.data : null;
@@ -76,12 +87,15 @@ window.AtomoriUgvView = (() => {
       ['电池电量 / 电压', '当前 HTTP 网关未提供有效测量值'], ['温湿度连续错误次数', live ? environment.consecutiveErrors : null],
       ['温湿度采样错误', live ? environment.error || '无错误上报' : '—']
     ]);
-    const sensors = table(['传感器', '报警', 'GPIO', '去抖电平 / 原始电平', '触发电平', '变化次数', '样本年龄'], ['tilt', 'flame', 'mq2'].map((key, index) => {
+    const sound = soundState(data, elapsed);
+    const sensors = rows([['声音状态', sound.text]]) +
+      `<p class="dialog-muted">${safe(sound.title)}</p>` +
+      table(['传感器', '数字触发', 'GPIO', '去抖电平 / 原始电平', '触发电平', '变化次数', '样本年龄'], ['sound', 'flame', 'mq2'].map((key, index) => {
       const sensor = environment.digital?.[key];
       const valid = live && sensor?.valid === true && fresh(sensor.ageS, elapsed);
-      return [['倾斜', '火焰', 'MQ2 气体'][index], valid ? flag(sensor.triggered, '触发', '未触发') : '—', sensor?.gpio,
+      return [['声音 GPIO（非分贝）', '火焰', 'MQ2 气体'][index], valid ? flag(sensor.triggered, '触发', '未触发') : '—', sensor?.gpio,
         valid ? `${sensor.level ?? '—'} / ${sensor.rawLevel ?? '—'}` : '—', sensor?.activeLevel, valid ? sensor.changes : null, ageText(sensor?.ageS, elapsed)];
-    }));
+    })) + '<p class="dialog-muted">声音状态按默认值与数字触发信号显示，尚未接入分贝测量。</p>';
     const location = rows([
       ['里程计位姿（odom）', pose(odomFresh ? data.odom?.pose : null)], ['里程计年龄', ageText(data.odom?.ageS, elapsed)],
       ['地图定位状态（快照）', live ? label(localization.state, locationLabels) : '—'], ['定位后端 / 地图', live ? `${localization.backend || '—'} / ${localization.map_name || '—'}` : '—'],
@@ -152,5 +166,5 @@ window.AtomoriUgvView = (() => {
     if (scroller) scroller.scrollTop = scrollTop;
   }
 
-  return { renderDetails, mechanismState, section, snapshotFresh };
+  return { renderDetails, mechanismState, section, snapshotFresh, soundState };
 })();

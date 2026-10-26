@@ -6,7 +6,7 @@ const fixture = () => ({
   server_time_ms: 1791513351230,
   odom: { pose: [0, -1, 0], speed_mps: 0 }, topic_ages_s: { odom: 0.1, ugv_control_mux: 0.1 },
   environment: { available: true, stale: false, age_s: 0.2, temperature_c: 0, humidity_percent: 0,
-    digital: Object.fromEntries(['tilt', 'flame', 'mq2'].map(key => [key, { available: true, stale: false, age_s: 0.1, triggered: false }])) },
+    digital: Object.fromEntries(['sound', 'flame', 'mq2'].map(key => [key, { available: true, stale: false, age_s: 0.1, triggered: false }])) },
   ultrasonic: { range: 0, age_s: 0.1 }, battery_voltage: null,
   localization: { active: true, state: 'localized', map_pose: [5, -1, 0.3], age_s: 0.1 },
   camera: { ready: false, age_s: null }, leadscrew: { age_s: 0.1, status: { state: [4, 4] } }
@@ -40,10 +40,10 @@ test('小车传感器独立检查年龄，过期缓存及错误数据不成为�
   assert.equal((await read(status)).odom.speedMps, null);
   status.topic_ages_s.odom = 0.1; status.odom.speed_mps = null;
   assert.equal((await read(status)).odom.speedMps, null, '缺失速度不能判为驻停');
-  for (const change of [{ age_s: 3 }, { triggered: 1 }, { available: false }, { stale: true }]) {
-    const status = fixture(); Object.assign(status.environment.digital.tilt, change);
+  for (const change of [{ age_s: 3 }, { triggered: 1 }, { triggered: null }, { available: false }, { stale: true }]) {
+    const status = fixture(); Object.assign(status.environment.digital.sound, change);
     const data = await read(status);
-    assert.equal(data.environment.digital.tilt.triggered, null);
+    assert.equal(data.environment.digital.sound.triggered, null);
     assert.equal(data.environment.digital.flame.triggered, false, '数字传感器独立失效');
   }
 });

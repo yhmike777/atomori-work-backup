@@ -47,12 +47,10 @@
     document.querySelectorAll('[data-camera-tab],#expand-camera,#ground-view,#expand-ground').forEach(element => { element.disabled = true; });
     document.querySelectorAll('[data-business],.asset-pin,#instrument-finding,[data-nav="devices"],#site-details').forEach(element => { element.disabled = true; });
     applyLiveOnlyLabels();
-    document.querySelector('.demo-state').textContent='配置不可用 · 控制关闭';
     return;
   }
   if (config.mode !== 'upstream-readonly') return;
 
-  document.querySelector('.demo-state').textContent = '上游只读 · 本机业务';
   document.querySelector('.spatial-heading h2 span').textContent = '演示地图 · 未与车端地图配准';
   document.querySelector('.running-label').textContent = '演示任务';
   document.querySelector('.map-hint').textContent = '示意图与点位数值为样本';
@@ -84,7 +82,6 @@
 
   function applyLiveOnlyLabels() {
     if (!config.liveOnly) return;
-    document.querySelector('.demo-state').textContent = '真实数据 · 只读';
     document.querySelector('.spatial-heading h2 span').textContent = '管廊示意图 · 未与实机配准';
     document.querySelector('.map-hint').textContent = '示意图无实时设施测量数据';
     document.querySelectorAll('.spatial-kpis > div > b').forEach(element => { element.textContent = '—'; });
@@ -214,12 +211,19 @@
     document.querySelector('.link-topology').textContent = `${localized ? '地图' : '里程计'} · ${positionText(location)}`;
     document.querySelector('.link-topology').title = '车端原始坐标；地图未叠加车辆标记，点击车辆详情查看更多数据';
     document.querySelectorAll('.environment-grid button').forEach((button, index) => {
-      const [key, label] = [['tilt', '倾斜'], ['flame', '火焰'], ['mq2', '气体检测']][index];
+      const [key, label] = [['sound', '声音'], ['flame', '火焰'], ['mq2', '气体检测']][index];
+      button.querySelector('span').textContent = label;
+      if (key === 'sound') {
+        const sound = AtomoriUgvView.soundState(config.carConfigured ? data : {}, elapsed);
+        button.querySelector('b').textContent = sound.text;
+        button.querySelector('b').style.color = sound.color;
+        button.title = sound.title;
+        return;
+      }
       const sensor = data.environment?.digital?.[key];
       const valid = config.carConfigured && sensor?.valid === true
         && typeof sensor.triggered === 'boolean' && fresh(ugvAge(sensor.ageS));
       const gas = key === 'mq2';
-      button.querySelector('span').textContent = label;
       button.querySelector('b').textContent = valid
         ? gas ? sensor.triggered ? '危险' : '正常' : sensor.triggered ? '触发' : '未触发'
         : '—';

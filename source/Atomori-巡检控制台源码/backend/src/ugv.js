@@ -23,11 +23,12 @@ export function normalizeUgvStatus(input, elapsedS = 0) {
     humidity: metric(environment.humidity_percent, environmentAge, '%RH', 'environment.humidity_percent', 10, { available: environmentAvailable, min: 0, max: 100 }),
     ultrasonic: metric(object(raw.ultrasonic).range, age(object(raw.ultrasonic).age_s, elapsedS), 'm', '/ultrasonic/range', 2, { min: 0 })
   };
-  const digital = Object.fromEntries(['tilt', 'flame', 'mq2'].map(key => {
+  const digital = Object.fromEntries(['sound', 'flame', 'mq2'].map(key => {
     const sensor = object(object(environment.digital)[key]);
     const ageS = age(sensor.age_s, elapsedS);
-    const valid = sensor.available === true && sensor.stale === false && ageS !== null && ageS <= 2 && bool(sensor.triggered) !== null;
-    return [key, { triggered: valid ? sensor.triggered : null, valid, ageS, maxAgeS: 2, source: `environment.digital.${key}`,
+    const available = sensor.available === true && sensor.stale === false && ageS !== null && ageS <= 2;
+    const valid = available && bool(sensor.triggered) !== null;
+    return [key, { triggered: valid ? sensor.triggered : null, valid, available, ageS, maxAgeS: 2, source: `environment.digital.${key}`,
       gpio: number(sensor.gpio), level: number(sensor.level), rawLevel: number(sensor.raw_level), activeLevel: number(sensor.active_level), changes: number(sensor.changes) }];
   }));
   const observed = number(raw.server_time_ms) === null ? null : new Date(raw.server_time_ms);

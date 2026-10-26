@@ -1,0 +1,36 @@
+.vehicle-control-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 480px;
+}
+
+.vehicle-control-shell .flight-header,
+.vehicle-control-shell .flight-title {
+  flex-shrink: 0;
+}
+
+.vehicle-control-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 24px;
+}
+
+.vehicle-control-frame {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+@media (max-width: 640px) {
+  .vehicle-control-main {
+    padding-bottom: 16px;
+  }
+}

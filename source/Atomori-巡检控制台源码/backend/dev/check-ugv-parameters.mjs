@@ -26,7 +26,7 @@ let raw = {
   odom: { pose: [0, 0, 0], speed_mps: 0 },
   topic_ages_s: { odom: 0.1, scan: 0.1, ugv_control_mux: 0.1, ugv_command_gateway: 0.1, leadscrew: 0.1 },
   environment: { available: true, stale: false, age_s: 0.1, temperature_c: 0, humidity_percent: 0, consecutive_errors: 0,
-    digital: Object.fromEntries(['tilt', 'flame', 'mq2'].map((key, index) => [key, { available: true, stale: false, age_s: 0.1, triggered: false, gpio: [13, 6, 18][index], level: 1, raw_level: 1, active_level: 0, changes: 0 }])) },
+    digital: Object.fromEntries(['sound', 'flame', 'mq2'].map((key, index) => [key, { available: true, stale: false, age_s: 0.1, triggered: false, gpio: [6, 26, 19][index], level: 1, raw_level: 1, active_level: 0, changes: 0 }])) },
   gps: { fix: { status: 0, latitude: 0, longitude: 0, altitude: 0 }, age_s: 0.1 },
   localization: { active: true, state: 'localized', age_s: 0.1, backend: 'amcl', map_name: 'map_demo_new', map_pose: [0, 0, 0], confidence: 'high', xy_sigma_m: 0, yaw_sigma_rad: 0 },
   ultrasonic: { range: 0, age_s: 0.1 }, battery_voltage: null,

@@ -17,7 +17,7 @@ let url = 'http://127.0.0.1:3000';
 let status = {
   odom: { pose: [1, -2, 0], speed_mps: 0.18 }, topic_ages_s: { odom: 0.1, ugv_control_mux: 0.1 },
   environment: { available: true, stale: false, age_s: 0.1, temperature_c: 24.2, humidity_percent: 56,
-    digital: { tilt: { available: true, stale: false, age_s: 0.1, triggered: true }, flame: { available: true, stale: false, age_s: 0.1, triggered: false }, mq2: { available: true, stale: false, age_s: 0.1, triggered: false } } },
+    digital: { sound: { available: true, stale: false, age_s: 0.1, triggered: true }, flame: { available: true, stale: false, age_s: 0.1, triggered: false }, mq2: { available: true, stale: false, age_s: 0.1, triggered: false } } },
   ugv_control_mux: { authority: 'navigation', emergency_stop: false },
   localization: { active: true, state: 'localized', age_s: 0.1, map_pose: [5.5, -1.2, 0.3], confidence: 'high' },
   camera: { ready: false }, camera_rear: { ready: false }
@@ -70,11 +70,11 @@ try {
     assert.equal(await metrics.nth(1).textContent(), '0.18 m/s');
     assert.equal(await metrics.nth(2).textContent(), '24.2 °C');
     assert.equal(await metrics.nth(3).textContent(), '56 %RH');
-    assert.equal(await page.locator('.environment-grid b').allTextContents().then(values => values.join(',')), '触发,未触发,正常');
+    assert.equal(await page.locator('.environment-grid b').allTextContents().then(values => values.join(',')), '异常,未触发,正常');
     assert.match(await page.locator('.link-topology').textContent(), /地图 · X 5.50/);
     console.log('PASS 小车有效温湿度、速度、地图定位及数字触发状态同步');
     status.environment.stale = true;
-    status.environment.digital.tilt.age_s = 3;
+    status.environment.digital.sound.age_s = 3;
     status.odom.speed_mps = null;
     await page.waitForFunction(() => document.getElementById('rover-state').textContent === '里程计过期/缺失');
     assert.equal(await metrics.nth(1).textContent(), '—');
@@ -82,7 +82,7 @@ try {
     assert.equal(await page.locator('.environment-grid b').first().textContent(), '—');
     console.log('PASS 缺失速度不显示驻停，过期温湿度与数字信号独立清空');
     status.environment.stale = false; status.odom.speed_mps = 0; status.environment.temperature_c = 0; status.environment.humidity_percent = 0;
-    status.environment.digital.tilt.age_s = 0.1; status.localization.age_s = 3;
+    status.environment.digital.sound.age_s = 0.1; status.localization.age_s = 3;
     await page.waitForFunction(() => document.querySelector('.ugv-panel .metric-grid .metric:nth-child(3) strong').textContent === '0.0 °C');
     assert.equal(await metrics.nth(1).textContent(), '0.00 m/s');
     assert.equal(await metrics.nth(3).textContent(), '0 %RH');
