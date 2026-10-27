@@ -109,16 +109,44 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
   }
 
   return {
-    status() { return { carConfigured: !!car, uavVisionConfigured: !!vision, uavFlightConfigured: !!flightStatus, missionPlannerConfigured: !!missionPlanner, liveOnly: liveOnly === true, mode: car || vision || flightStatus || missionPlanner ? 'upstream-readonly' : 'demo', commandsEnabled: false }; },
+    status() { return { carConfigured: !!car, uavVisionConfigured: !!vision, uavFlightConfigured: !!flightStatus, missionPlannerConfigured: !!missionPlanner, uavFlightSource: missionPlanner ? 'mission-planner' : flightStatus ? 'raspberry-pi' : null, liveOnly: liveOnly === true, mode: car || vision || flightStatus || missionPlanner ? 'upstream-readonly' : 'demo', commandsEnabled: false }; },
     async missionPlanner() {
       if (!missionPlanner) unavailable('Mission Planner MAVLink 接收服务');
+      const startedAt = performance.now();
       const snapshot = await requestJson(missionPlanner, '/api/status');
       if (snapshot.source !== 'mission-planner-mavlink' || snapshot.deviceId !== 'UAV-01' || typeof snapshot.flight?.connected !== 'boolean') {
         throw new IntegrationUnavailableError('UPSTREAM_INVALID', 'Mission Planner 遥测响应无效');
       }
-      return snapshot;
+      const snapshotAgeS = (performance.now() - startedAt) / 1000;
+      const addAge = value => finite(value) !== null && value >= 0 ? value + snapshotAgeS : null;
+      const flight = snapshot.flight;
+      const stateAgeS = addAge(flight.stateAgeS);
+      const connected = flight.connected === true && stateAgeS !== null && stateAgeS <= 2;
+      const metrics = Object.fromEntries(Object.entries(object(flight.metrics)).map(([key, raw]) => {
+        const item = object(raw), ageS = addAge(item.ageS), maxAgeS = finite(item.maxAgeS);
+        const value = finite(item.value);
+        const hasValue = value !== null && (key !== 'batteryVoltage' || value > 0);
+        const valid = connected && item.valid === true && hasValue && ageS !== null && maxAgeS !== null && ageS <= maxAgeS;
+        return [key, { ...item, ageS, valid, value: valid ? value : null,
+          reason: valid ? 'VALID' : !connected ? 'FLIGHT_CONTROLLER_DISCONNECTED' : !hasValue ? 'NO_VALID_SAMPLE' : item.valid === true ? 'STALE_OR_INVALID' : item.reason }];
+      }));
+      const details = object(flight.details);
+      return { ...snapshot, snapshotAgeS, ageIncludes: 'device-http-and-response-wait',
+        transport: { ...object(snapshot.transport), lastDatagramAgeS: addAge(snapshot.transport?.lastDatagramAgeS) },
+        flight: { ...flight, connected, stateAgeS, metrics,
+          mode: connected ? flight.mode : 'DISCONNECTED', armed: connected ? flight.armed : null,
+          landedStateAgeS: addAge(flight.landedStateAgeS),
+          rollDeg: metrics.roll?.value ?? null, pitchDeg: metrics.pitch?.value ?? null,
+          batteryVoltage: metrics.batteryVoltage?.value ?? null, batteryPercent: metrics.batteryPercent?.value ?? null,
+          // RANGEFINDER has no sensor orientation; home/local altitude is not ground clearance.
+          rangefinderM: null, relativeAltitudeM: metrics.relativeAltitude?.value ?? null,
+          details: { ...details, healthAgeS: addAge(details.healthAgeS),
+            alerts: Array.isArray(details.alerts) ? details.alerts.map(item => ({ ...item, ageS: addAge(item.ageS) })) : [] }
+        }
+      };
     },
-    async telemetry(deviceId) {
+    async telemetry(deviceId, requestedSource) {
+      const snapshotStartedAt = performance.now();
       const receivedAt = new Date().toISOString();
       if (deviceId === 'UGV-01') {
         if (!car) unavailable('车端网关');
@@ -128,18 +156,36 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
       }
       if (deviceId === 'UAV-01') {
         if (!vision && !flightStatus) unavailable('机载状态服务');
-        let raw = {}, lastError, visionReceivedAt = performance.now();
-        if (vision) {
-          try { raw = await requestJson(vision, '/api/status'); visionReceivedAt = performance.now(); }
-          catch (error) { lastError = error; }
-        }
-        let directFlight = null;
-        if (flightStatus) {
-          try { directFlight = await requestJson(flightStatus, '/api/status'); }
-          catch (error) { lastError = error; /* 使用视觉服务的内嵌快照，绝不编造数值。 */ }
-        }
+        if (requestedSource !== undefined && !['flight', 'vision'].includes(requestedSource)) throw Object.assign(new Error('无效的遥测来源'), { status: 400, code: 'INVALID_TELEMETRY_SOURCE' });
+        const readVision = !!vision && (requestedSource !== 'flight' || !flightStatus);
+        const readFlight = !!flightStatus && requestedSource !== 'vision';
+        if (!readVision && !readFlight) unavailable(requestedSource === 'vision' ? '机载视觉服务' : '飞控状态服务');
+        let raw = {}, directFlight = null, lastError, visionStartedAt = null, flightStartedAt = null;
+        // Combined callers retain the old response shape. The dashboard requests each
+        // source independently so a slow vision service never holds up flight samples.
+        await Promise.all([
+          readVision ? (async () => {
+            visionStartedAt = performance.now();
+            try { raw = await requestJson(vision, '/api/status'); }
+            catch (error) { lastError = error; }
+          })() : null,
+          readFlight ? (async () => {
+            flightStartedAt = performance.now();
+            try { directFlight = await requestJson(flightStatus, '/api/status'); }
+            catch (error) { lastError = error; }
+          })() : null
+        ]);
         if (!directFlight && !Object.keys(raw).length) throw lastError || new IntegrationUnavailableError('UPSTREAM_INVALID', '机载状态响应未包含有效数据');
-        const flight = object(directFlight || raw.flight);
+        const normalizedAt = performance.now();
+        const snapshotAgeS = (normalizedAt - snapshotStartedAt) / 1000;
+        const visionElapsedS = visionStartedAt === null ? 0 : (normalizedAt - visionStartedAt) / 1000;
+        const flightElapsedS = (normalizedAt - (directFlight ? flightStartedAt : visionStartedAt ?? normalizedAt)) / 1000;
+        const addAge = (value, elapsed) => finite(value) !== null && value >= 0 ? value + elapsed : null;
+        const sourceFlight = object(directFlight || raw.flight);
+        const flight = { ...sourceFlight,
+          ...Object.fromEntries(['vehicle_state_age_s', 'extended_state_age_s', 'guided_executor_age_s', 'velocity_age_s'].map(key => [key, addAge(sourceFlight[key], flightElapsedS)])),
+          telemetry_meta: Object.fromEntries(Object.entries(object(sourceFlight.telemetry_meta)).map(([key, value]) => [key, { ...object(value), age_s: addAge(object(value).age_s, flightElapsedS) }]))
+        };
         const telemetry = object(flight.telemetry);
         const metrics = {
           roll: flightMetric(flight, 'roll_deg', 'deg', '/mavros/local_position/pose.orientation', 0.5, { min: -180, max: 180 }),
@@ -176,8 +222,9 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
         const landedFresh = flight.flight_controller_connected === true && stateAgeS !== null && stateAgeS >= 0 && stateAgeS <= 2
           && landedAgeS !== null && landedAgeS >= 0 && landedAgeS <= 2;
         return {
-          deviceId, source: 'uav-rpi-deploy', receivedAt,
-          flight: {
+          deviceId, source: 'uav-rpi-deploy', receivedAt, snapshotAgeS,
+          ageIncludes: 'device-http-and-response-wait',
+          ...(requestedSource !== 'vision' ? { flight: {
             source: directFlight ? 'flight-status-http' : 'vision-embedded',
             connected: flight.flight_controller_connected === true,
             armed: flight.armed === true, mode: flight.mode || 'UNKNOWN',
@@ -205,15 +252,15 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
               executorAgeS: finite(flight.guided_executor_age_s)
             },
             verticalSpeedMps: finite(telemetry.vertical_speed_mps)
-          },
-          vision: {
+          } } : {}),
+          ...(requestedSource !== 'flight' ? { vision: {
             sensor: raw.sensor || 'UNKNOWN', mode: raw.mode || 'UNKNOWN',
-            frameAgeMs: finite(raw.frame_age_ms), found: raw.found === true,
+            frameAgeMs: finite(raw.frame_age_ms) !== null && raw.frame_age_ms >= 0 ? raw.frame_age_ms + visionElapsedS * 1000 : null, found: raw.found === true,
             tagId: raw.tag_id ?? null, distanceM: finite(raw.distance_m),
             xM: finite(raw.x_m), yM: finite(raw.y_m), zM: finite(raw.z_m),
             captureFps: finite(raw.capture_fps), encodedFps: finite(raw.encoded_fps),
-            relativePose: relativePose(raw, (performance.now() - visionReceivedAt) / 1000)
-          }
+            relativePose: relativePose(raw, visionElapsedS)
+          } } : {})
         };
       }
       return unconfiguredIntegrations.telemetry(deviceId);
@@ -240,7 +287,7 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
     },
     async stream(deviceId) {
       const streams = deviceId === 'UGV-01' && car ? [
-        { id: 'front', type: 'image/jpeg', url: '/api/v1/devices/UGV-01/cameras/front.jpg' },
+        { id: 'front', type: 'multipart/x-mixed-replace', url: '/api/v1/devices/UGV-01/cameras/front.mjpg' },
         { id: 'rear', type: 'image/jpeg', url: '/api/v1/devices/UGV-01/cameras/rear.jpg' },
         { id: 'top', type: 'image/jpeg', url: '/api/v1/devices/UGV-01/cameras/top.jpg' }
       ] : deviceId === 'UAV-01' ? [
@@ -252,6 +299,7 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
     },
     async media(deviceId, cameraId, options = {}) {
       const routes = {
+        'UGV-01/front.mjpg': [car, '/api/camera/stream', 'multipart/x-mixed-replace'],
         'UGV-01/front.jpg': [car, '/api/camera.jpg', 'image/jpeg'],
         'UGV-01/rear.jpg': [car, '/api/camera_rear.jpg', 'image/jpeg'],
         'UGV-01/top.jpg': [car, '/api/camera_top.jpg', 'image/jpeg'],

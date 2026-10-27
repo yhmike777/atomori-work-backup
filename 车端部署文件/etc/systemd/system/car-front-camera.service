@@ -1,0 +1,23 @@
+[Unit]
+Description=CAR A2 mini RTSP camera for ROS and web preview
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+SupplementaryGroups=video
+WorkingDirectory=/home/ubuntu/CAR_ws
+Environment=ROS_LOCALHOST_ONLY=0
+Environment=FASTRTPS_DEFAULT_PROFILES_FILE=/home/ubuntu/CAR_ws/config/fastdds_udp_only.xml
+Environment=OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp
+ExecStart=/bin/bash -c 'source /opt/ros/humble/setup.bash; source /home/ubuntu/CAR_ws/install/setup.bash; exec ros2 run car_nodes camera_driver_node --ros-args -p simulate:=false -p device:=rtsp://192.168.144.25:8554/main.264 -p width:=480 -p height:=270 -p fps:=15 -p reconnect_interval_s:=0.5 -p compressed_topic:=/camera/image_raw/compressed -p jpeg_quality:=45 -p image_topic:=/camera/image_raw -p info_topic:=/camera/camera_info -p frame_id:=camera_optical_frame'
+KillSignal=SIGINT
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

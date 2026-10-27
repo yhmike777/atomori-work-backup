@@ -1,0 +1,114 @@
+/* Real platform thumbnails, rendered from product-viewer/public/ugv.glb.
+   Load after dashboard-theme.css and use img.radar-uav / img.radar-ugv. */
+.dashboard-page .coordination-radar > i {
+  border-color: #2a424d80;
+  background: radial-gradient(ellipse, #30465320, transparent 72%);
+}
+.dashboard-page .coordination-radar > i:nth-of-type(2) {
+  border-color: #2a424d66;
+}
+.dashboard-page .coordination-radar > i:nth-of-type(3) {
+  border-color: #2a424d4d;
+}
+.dashboard-page .coordination-radar > img {
+  display: block;
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  transform: translateX(-50%);
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 3px #0005);
+}
+.dashboard-page .coordination-radar > img.radar-uav {
+  top: 10px;
+  width: 62px;
+  height: 30px;
+}
+.dashboard-page .coordination-radar > img.radar-ugv {
+  bottom: 11px;
+  width: 45px;
+  height: 46px;
+}
+.dashboard-page .coordination-radar em {
+  z-index: 1;
+  top: 37px;
+  height: 43px;
+  border-left-width: 2px;
+}
+.dashboard-page .coordination-radar .north,
+.dashboard-page .coordination-radar .south {
+  left: calc(50% - 3px);
+}
+
+/* Decorative scan/beam effect; connection validity stays in the telemetry label. */
+.dashboard-page .coordination-radar[data-effect="laser"]::before,
+.dashboard-page .coordination-radar[data-effect="laser"]::after {
+  content: "";
+  position: absolute;
+  left: 2.5%;
+  top: 18%;
+  width: 95%;
+  height: 70%;
+  border: 2.5px solid #56dac5b3;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #3adfc017, transparent 68%);
+  transform: scale(.25);
+  opacity: 0;
+  pointer-events: none;
+  animation: coordination-scan 3.6s linear infinite;
+}
+.dashboard-page .coordination-radar[data-effect="laser"]::after {
+  animation-delay: -1.8s;
+}
+.dashboard-page .relative-position .coordination-radar[data-effect="laser"] em {
+  visibility: visible;
+  left: calc(50% - .75px);
+  width: 1.5px;
+  height: 46px;
+  border: 0;
+  border-radius: 3px;
+  background: repeating-linear-gradient(to bottom, #7bffe6 0 7px, transparent 7px 13px);
+  background-size: 1.5px 13px;
+  filter: drop-shadow(0 0 2px #45dfc8);
+  animation: coordination-beam 1.1s linear infinite;
+}
+.dashboard-page .coordination-radar[data-effect="laser"] em::before {
+  content: "";
+  position: absolute;
+  inset: 0 -2px;
+  background: linear-gradient(90deg, transparent, #3ed8be33, transparent);
+  border-radius: 50%;
+}
+.dashboard-page .coordination-radar[data-effect="laser"] em::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -.5px;
+  width: 2.5px;
+  height: 7px;
+  border-radius: 50%;
+  background: #bcfff2;
+  box-shadow: 0 0 3px #65ffe0, 0 0 6px #35d8bf80;
+  animation: coordination-pulse 1.8s ease-in-out infinite;
+}
+@keyframes coordination-scan {
+  0% { transform: scale(.22); opacity: 0; }
+  18% { opacity: .65; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes coordination-beam {
+  to { background-position: 0 26px; }
+}
+@keyframes coordination-pulse {
+  0%, 100% { transform: translateY(0); opacity: .3; }
+  50% { transform: translateY(37px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page .coordination-radar[data-effect="laser"]::before,
+  .dashboard-page .coordination-radar[data-effect="laser"]::after,
+  .dashboard-page .relative-position .coordination-radar[data-effect="laser"] em,
+  .dashboard-page .coordination-radar[data-effect="laser"] em::after {
+    animation: none;
+  }
+}

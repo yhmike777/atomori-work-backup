@@ -6,11 +6,12 @@ param(
   [switch]$DisconnectUav,
   [switch]$EnableUavVision,
   [string]$UavHost = 'uavpi.local',
+  [string]$MissionPlannerUrl = '',
   [string]$ListenAddress = '0.0.0.0'
 )
 $env:ATOMORI_CAR_URL = if ($DisconnectCar) { '' } else { $CarUrl }
 $env:ATOMORI_LISTEN_ADDRESS = $ListenAddress
-$env:ATOMORI_MISSION_PLANNER_URL = ''
+$env:ATOMORI_MISSION_PLANNER_URL = $MissionPlannerUrl
 $env:ATOMORI_LIVE_ONLY = 'true'
 $env:ATOMORI_UAV_VISION_URL = if ($DisconnectUav -or !$EnableUavVision) { '' } else { "http://${UavHost}:8765" }
 $env:ATOMORI_UAV_FLIGHT_URL = if ($DisconnectUav) { '' } else { "http://${UavHost}:8768" }

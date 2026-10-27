@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#26333e" /><title>Atomori · IOTSC 巡检平台</title>
+  <script>const mode = new URLSearchParams(location.search); if (mode.get('dashboard') === '1' || mode.get('embed') === '1') document.documentElement.classList.add('dashboard');</script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%2312151b'/%3E%3Ctext x='12' y='29' fill='%23ef6974' font-size='26' font-family='Arial'%3EA%3C/text%3E%3C/svg%3E" />
+  <script type="module" crossorigin src="./assets/index-C1zFVeW6.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CpxYe-ic.css">
+</head>
+<body>
+  <header>
+    <a class="wordmark" href="/marp/巡检控制台.html" aria-label="Atomori 主界面">ATOMORI<span>原子之森</span></a>
+    <span class="header-note">整机展示 · 手势交互</span>
+    <nav class="header-actions" aria-label="展示页导航">
+      <a class="dashboard-link" href="/marp/巡检控制台.html"><span aria-hidden="true">←</span> 返回主界面</a>
+      <a id="render-link" class="render-link" href="./ugv-studio.png" target="_blank" rel="noopener">查看渲染图 <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+  <main>
+    <section class="stage" aria-label="三维模型展示台">
+      <div class="stage-title"><h1>IOTSC 巡检平台</h1><p>F330 · 7 寸桨 · 钛银与石墨灰</p></div>
+      <div class="overview-modes" aria-label="模型展示方式"><button id="overview-whole" aria-pressed="false" disabled>整机</button><button id="overview-structure" aria-pressed="true" disabled>结构</button></div>
+      <canvas id="viewer" tabindex="0" aria-label="三维模型：拖动旋转，滚轮缩放，点击零件拆解。键盘方向键旋转，加减键缩放。"></canvas>
+      <svg class="overview-annotations" aria-hidden="true"><g data-callout="uav"><path/><circle r="2"/><text>无人机平台</text></g><g data-callout="vision"><path/><circle r="2"/><text>视觉模组</text></g><g data-callout="chassis"><path/><circle r="2"/><text>移动底盘</text></g></svg>
+      <div class="overview-actions" aria-label="模型操作"><button id="overview-rotate" aria-pressed="false" disabled><svg viewBox="0 0 24 24"><path d="M17 4a8 8 0 1 1-8 0M12 2v6m-3-3 3-3 3 3"/></svg>旋转视图</button><button id="overview-reset" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/></svg>复位</button><a id="overview-fullscreen" href="./index.html" target="_top" title="打开完整整机与爆炸图界面"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg><span>全屏</span></a></div>
+      <div id="loading" role="status"><span class="spinner"></span><p>正在载入三维模型…</p><button id="retry" hidden>重新加载</button></div>
+      <button id="drawer-toggle" type="button" aria-expanded="false" aria-controls="parts-panel" disabled>零件</button>
+      <div class="view-tools" aria-label="视角工具"><button id="home" title="恢复初始视角" aria-label="恢复初始视角">⌂</button><button id="zoom-in" title="放大" aria-label="放大">＋</button><button id="zoom-out" title="缩小" aria-label="缩小">−</button></div>
+      <div id="hover-label" aria-hidden="true"></div>
+      <div class="stage-footer"><span class="gesture-hint">拖动旋转 · 滚轮缩放 · 点击部件拆解</span></div>
+    </section>
+    <div class="overview-toolbar" aria-label="整机结构操作"><div class="structure-actions"></div></div>
+    <aside id="parts-panel" aria-label="部件与拆解控制">
+      <div class="panel-heading"><h2>探索结构</h2><span id="part-total">正在读取装配组</span><button id="drawer-close" type="button" aria-label="关闭探索结构">×</button></div>
+      <p class="panel-intro">选择模型或下方部件，移开查看内部。再次点击即可装回。</p>
+      <label class="control-label" for="layout">展示方式</label><select id="layout" aria-label="展开方式" disabled><option value="sphere">球形爆炸</option><option value="assembly">按结构展开</option><option value="layers">分层展示</option></select>
+      <div class="assembly-actions"><button id="explode" class="primary" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg>一键展开</button><button id="restore" disabled>恢复组装</button></div>
+      <div class="spread"><label for="spread">展开程度</label><output id="spread-value" for="spread">0%</output><input id="spread" type="range" min="0" max="50" value="0" disabled aria-label="展开程度" /></div>
+      <div class="spread distance"><label for="distance">展开间距</label><output id="distance-value">50%</output><input id="distance" type="range" min="40" max="50" value="50" disabled /></div>
+      <div class="display-options"><select id="view" aria-label="视角" disabled><option value="perspective">立体视角</option><option value="front">前视</option><option value="rear">后视</option><option value="left">左视</option><option value="right">右视</option><option value="top">俯视</option><option value="bottom">仰视</option></select><button id="autorotate" aria-pressed="false" disabled>自动旋转</button><button id="snapshot" disabled>保存图片</button></div>
+      <details class="gesture-panel"><summary>摄像头手势控制</summary><p>握拳后张掌展开，张掌后握拳还原。单掌移动旋转，双掌开合缩放。手指朝上，双掌朝向镜头。</p><button id="camera-toggle" aria-pressed="false">启用摄像头</button><video id="camera-video" muted playsinline hidden></video><p id="camera-status" role="status">仅在本机识别，不录制或上传画面。</p></details>
+      <label class="control-label" for="part-search">查找部件</label><input id="part-search" type="search" placeholder="例如：外壳、7寸、电池" />
+      <div id="parts" aria-label="装配组列表"></div>
+      <div class="selection-info" aria-live="polite"><span id="selection-title">点击任一部件开始</span><p id="selection-description">移开护板，查看感知、计算通信、驱动与电池模块。</p></div>
+      <div class="panel-footer"><span class="status-dot"></span>实时三维模型<span id="moved-count">尚未加载</span></div>
+    </aside>
+  </main>
+</body>
+</html>

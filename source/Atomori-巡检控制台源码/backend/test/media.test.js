@@ -135,3 +135,55 @@ test('收到响应头后的有限 JSON 响应体读取仍有超时', { timeout: 
   await assert.rejects(integrations.telemetry('UAV-01'), { code: 'UPSTREAM_INVALID' });
   await within(upstreamClosed);
 });
+
+test('活动 MJPEG 健康记录不被超过128次JPEG请求挤出，记录总数保持有界', { timeout: 12000 }, async t => {
+  let closeStream;
+  const streamClosed = new Promise(resolve => { closeStream = resolve; });
+  const jpeg = Buffer.from([0xff, 0xd8, 0x01, 0xff, 0xd9]);
+  const upstream = await listen(t, (req, res) => {
+    if (req.url === '/api/camera.jpg') {
+      res.writeHead(200, { 'content-type': 'image/jpeg' });
+      res.end(jpeg);
+      return;
+    }
+    assert.equal(req.url, '/api/camera/stream');
+    res.writeHead(200, { 'content-type': 'multipart/x-mixed-replace; boundary=FRAME' });
+    const send = () => res.write(Buffer.concat([
+      Buffer.from(`--FRAME\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`),
+      jpeg, Buffer.from('\r\n')
+    ]));
+    send();
+    const timer = setInterval(send, 20);
+    res.on('close', () => { clearInterval(timer); closeStream(); });
+  });
+  const integrations = createUpstreamIntegrations({ carUrl: upstream });
+  const proxy = await listen(t, app(integrations));
+  const response = await fetch(`${proxy}/api/v1/devices/UGV-01/cameras/front.mjpg?clientId=active-ground-video`, {
+    signal: AbortSignal.timeout(10000)
+  });
+  assert.equal(response.status, 200);
+  const reader = response.body.getReader();
+  t.after(() => reader.cancel().catch(() => {}));
+  const first = await reader.read();
+  assert.equal(first.done, false);
+  assert.ok(first.value.length > 0);
+
+  // Simulate older dashboard tabs repeatedly fetching independent JPEG snapshots.
+  for (let index = 0; index < 140; index++) {
+    const snapshot = await fetch(`${proxy}/api/v1/devices/UGV-01/cameras/front.jpg?clientId=old-tab-${index}`);
+    assert.equal(snapshot.status, 200);
+    assert.deepEqual(Buffer.from(await snapshot.arrayBuffer()), jpeg);
+  }
+  const status = await fetch(`${proxy}/api/v1/devices/UGV-01/streams`);
+  assert.equal(status.status, 200);
+  const { data } = await status.json();
+  assert.ok(data.streamHealth.length <= 128, '已完成的短请求不能使健康记录无限增长');
+  const active = data.streamHealth.find(item => item.clientId === 'active-ground-video');
+  assert.ok(active, '长期活动的 MJPEG 记录必须保留，避免前端错误判定图传中断');
+  assert.equal(active.cameraId, 'front.mjpg');
+  assert.equal(active.active, true);
+  assert.ok(active.receivedBytes >= first.value.length);
+  assert.equal((await reader.read()).done, false, '批量JPEG请求后原视频流仍能接收数据');
+  await reader.cancel();
+  await within(streamClosed);
+});

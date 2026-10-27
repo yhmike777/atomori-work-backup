@@ -47,21 +47,22 @@ function confirmAction(title,description,run){
 }
 function switchCamera(key,point=key==='thermal'?'C-06 电缆接头':pointName()){
  document.querySelectorAll('[data-camera-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.cameraTab===key)));
- state.camera=key;state.cameraPoint=point;const camera=cameras[key];$('main-camera').src='../assets/generated/console/'+camera.image;$('main-camera').alt=camera.name+'图传演示';$('camera-name').textContent=camera.name;$('camera-quality').textContent=camera.quality;
+ state.camera=key;state.cameraPoint=point;const camera=cameras[key];if(document.body.classList.contains('dashboard-page')){$('main-camera').removeAttribute('src');$('camera-name').textContent=camera.name;$('camera-quality').textContent='等待实时画面';$('camera-meta').textContent='';$('target-bracket').style.display='none';return;}$('main-camera').src='../assets/generated/console/'+camera.image;$('main-camera').alt=camera.name+'图传演示';$('camera-name').textContent=camera.name;$('camera-quality').textContent=camera.quality;
  $('camera-meta').textContent=camera.hardware+(key==='dock'?'　视觉目标 PAD-01':key==='thermal'?'　最高温区域':`　俯仰 ${state.pitch.toFixed(1)}°`);
  $('target-bracket').style.display=key==='ugv'?'none':'';$('target-label').textContent=key==='dock'?'PAD-01 / 视觉跟踪':key==='thermal'?'C-06 / 48.6°C':state.cameraPoint;
 }
 document.querySelectorAll('[data-camera]').forEach(button=>button.onclick=()=>switchCamera(button.dataset.camera));
 $('restore-camera').onclick=()=>switchCamera('uav');
 $('expand-camera').onclick=()=>openDialog(cameras[state.camera].name,`<img src="../assets/generated/console/${cameras[state.camera].image}" alt="当前相机完整画面"><p class="dialog-muted">${cameras[state.camera].hardware} · ${state.cameraPoint} · 图像样本</p>`);
-$('toggle-route').onclick=()=>{const button=$('toggle-route'),visible=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(visible));$('map-route').style.display=visible?'':'none';document.querySelector('.twin-route').style.display=visible?'':'none';button.textContent=visible?'隐藏路径':'显示路径';};
-$('toggle-map').onclick=()=>{const flat=document.querySelector('.map-area').classList.toggle('is-2d');$('toggle-map').textContent=flat?'2.5D':'二维';$('toggle-map').setAttribute('aria-pressed',String(flat));$('map-view-label').textContent=flat?'四区线路索引':'2.5D 空间档案';};
+if($('toggle-route'))$('toggle-route').onclick=()=>{const button=$('toggle-route'),visible=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(visible));$('map-route').style.display=visible?'':'none';document.querySelector('.twin-route').style.display=visible?'':'none';button.textContent=visible?'隐藏路径':'显示路径';};
+if($('toggle-map'))$('toggle-map').onclick=()=>{const flat=document.querySelector('.map-area').classList.toggle('is-2d');$('toggle-map').textContent=flat?'2.5D':'二维';$('toggle-map').setAttribute('aria-pressed',String(flat));$('map-view-label').textContent=flat?'四区线路索引':'2.5D 空间档案';};
 $('thermal-view').onclick=()=>switchCamera('thermal');
 function lockDeviceControls(){
  document.querySelectorAll('.command-panel button:not([data-device])').forEach(button=>{if(state.readOnly){button.disabled=true;button.title='只读模式，设备控制未开放';}});
 }
-function setReadOnlyMode(readOnly){state.readOnly=readOnly;controls();if(!readOnly){$('pause-task').disabled=false;$('takeover').disabled=false;$('protective-stop').disabled=false;}lockDeviceControls();}
+function setReadOnlyMode(readOnly){state.readOnly=readOnly;if(!document.querySelector('.command-deck'))return;controls();if(!readOnly){$('pause-task').disabled=false;$('takeover').disabled=false;$('protective-stop').disabled=false;}lockDeviceControls();}
 function controls(){
+ if(!$('device-controls'))return;
  const blocked=state.stopped||state.manual||state.paused||state.completed===12;
  const wait=state.phase==='recover';
  if(state.device==='uav'){
@@ -83,6 +84,8 @@ function controls(){
  lockDeviceControls();
 }
 function update(){
+ // 模型主页面不再承载任务面板；设备遥测独立由 live.js 更新。
+ if(!document.querySelector('.command-deck'))return;
  $('control-owner').textContent=state.stopped?'保护停止':state.manual?'人工控制':state.paused?'任务暂停':'任务控制';
  $('pause-task').textContent=state.paused?'继续任务':'暂停任务';$('pause-task').disabled=state.stopped||state.manual||state.completed===12;
  $('takeover').textContent=state.manual?'交还控制':'人工接管';$('takeover').disabled=state.stopped;
@@ -92,25 +95,28 @@ function update(){
  $('rover-speed').innerHTML=(state.phase==='transit'&&!state.stopped&&!state.paused&&!state.manual?'0.35':'0.00')+' <small>m/s</small>';
  $('uav-height').innerHTML=(docked?'0.00':'1.85')+' <small>m</small>';
  $('uav-voltage').innerHTML=(state.phase==='charging'?'24.1':'22.8')+' <small>V</small>';
- const stop=taskStops[state.point],[x,y]=taskRoute[stop],mx=x*10,my=y*5;
- const rover=document.querySelector('.rover-marker'),drone=document.querySelector('.drone-marker');
- rover.style.left=x+'%';rover.style.top=y+'%';drone.style.left=(docked?x:x+6.2)+'%';drone.style.top=(docked?y-7:y-10)+'%';drone.classList.toggle('docked',docked);
- $('inspect-point').style.left=(x-7)+'%';$('inspect-point').style.top=(y+9)+'%';
- $('map-rover').setAttribute('transform',`translate(${mx} ${my})`);$('map-drone').setAttribute('transform',`translate(${mx+33} ${my-25})`);
- $('map-ground-fov').setAttribute('transform',`translate(${mx} ${my})`);$('map-air-fov').setAttribute('transform',`translate(${mx+33} ${my-25})`);$('map-air-fov').style.display=docked?'none':'';
- $('map-uav-label').setAttribute('x',mx+52);$('map-uav-label').setAttribute('y',my-25);$('map-point-label').setAttribute('x',mx-14);$('map-point-label').setAttribute('y',my+29);
- document.querySelectorAll('#map-route path:first-child,.twin-route .planned').forEach(p=>p.setAttribute('d',mapPath(taskRoute)));
- document.querySelectorAll('#map-route path:nth-child(2),.twin-route .travelled').forEach(p=>p.setAttribute('d',mapPath(taskRoute.slice(0,stop+1))));
- const currentPoint=document.querySelector('#map-route>circle');currentPoint.setAttribute('cx',mx);currentPoint.setAttribute('cy',my);
+ // 管廊已拆为独立页面；缺少地图时仅跳过地图渲染，设备与任务状态仍继续更新。
+ if(document.querySelector('.map-area')){
+  const stop=taskStops[state.point],[x,y]=taskRoute[stop],mx=x*10,my=y*5;
+  const rover=document.querySelector('.rover-marker'),drone=document.querySelector('.drone-marker');
+  rover.style.left=x+'%';rover.style.top=y+'%';drone.style.left=(docked?x:x+6.2)+'%';drone.style.top=(docked?y-7:y-10)+'%';drone.classList.toggle('docked',docked);
+  $('inspect-point').style.left=(x-7)+'%';$('inspect-point').style.top=(y+9)+'%';
+  $('map-rover').setAttribute('transform',`translate(${mx} ${my})`);$('map-drone').setAttribute('transform',`translate(${mx+33} ${my-25})`);
+  $('map-ground-fov').setAttribute('transform',`translate(${mx} ${my})`);$('map-air-fov').setAttribute('transform',`translate(${mx+33} ${my-25})`);$('map-air-fov').style.display=docked?'none':'';
+  $('map-uav-label').setAttribute('x',mx+52);$('map-uav-label').setAttribute('y',my-25);$('map-point-label').setAttribute('x',mx-14);$('map-point-label').setAttribute('y',my+29);
+  document.querySelectorAll('#map-route path:first-child,.twin-route .planned').forEach(p=>p.setAttribute('d',mapPath(taskRoute)));
+  document.querySelectorAll('#map-route path:nth-child(2),.twin-route .travelled').forEach(p=>p.setAttribute('d',mapPath(taskRoute.slice(0,stop+1))));
+  const currentPoint=document.querySelector('#map-route>circle');currentPoint.setAttribute('cx',mx);currentPoint.setAttribute('cy',my);
+  $('twin-drone-state').textContent=docked?'已回收':state.phase==='recover'?'回收中':'高位观察';
+  $('inspect-point').innerHTML='<i></i>'+pointName().split(' ')[0]+' <small>设施档案</small>';
+  $('map-point-label').textContent=pointName().split(' ')[0];
+  document.querySelector('.tunnel-map').setAttribute('aria-label',docked?'任务地图：无人机已回收到车载平台':'任务地图：无人车驻停，无人机在附近巡检');$('map-drone').style.display=docked?'none':'';$('map-uav-label').textContent=docked?'UAV 已回收':'UAV-01';
+ }
 
  document.querySelector('.dock-status').classList.toggle('charging',state.phase==='charging');
  $('mission-location').textContent='综合舱 · '+pointName();
- $('twin-drone-state').textContent=docked?'已回收':state.phase==='recover'?'回收中':'高位观察';
- $('inspect-point').innerHTML='<i></i>'+pointName().split(' ')[0]+' <small>设施档案</small>';
  document.querySelector('.running-label').textContent=state.stopped?'已停止':state.completed===12?'已完成':state.paused?'暂停中':'执行中';
- $('map-point-label').textContent=pointName().split(' ')[0];
  $('progress-count').textContent=String(state.completed).padStart(2,'0');$('progress-bar').style.width=(state.completed/12*100)+'%';
- document.querySelector('.tunnel-map').setAttribute('aria-label',docked?'任务地图：无人机已回收到车载平台':'任务地图：无人车驻停，无人机在附近巡检');$('map-drone').style.display=docked?'none':'';$('map-uav-label').textContent=docked?'UAV 已回收':'UAV-01';
  $('relative-drone').setAttribute('cx',docked?'43':'58');$('relative-drone').setAttribute('cy',docked?'40':'44');
  $('relative-vector').setAttribute('d',docked?'M43 40 43 40':'M43 40 58 44');
  $('drone-state').textContent=state.stopped?'保持停止':state.manual?'人工控制':state.paused?'任务暂停':docked?'已回收':state.phase==='recover'?'回收中':'定点观察';
@@ -128,18 +134,18 @@ function startRecovery(){
  const stages=['视觉接近参考目标','下降与落位检查','接触确认与机械对中','落位确认，等待补能'];clearInterval(recoveryTimer);
  recoveryTimer=setInterval(()=>{if(state.paused||state.manual)return;if(state.stopped){clearInterval(recoveryTimer);return;}addEvent(stages[step],'回收演示 · '+(step+1)+' / 4');step++;if(step===stages.length){clearInterval(recoveryTimer);state.phase='landed';update();toast('回收演示完成，可在补能平台中申请补能');}},1600);
 }
-$('pause-task').onclick=()=>{if(state.readOnly)return;state.paused=!state.paused;update();addEvent(state.paused?'任务暂停已确认':'继续任务已接受','演示回执 · 当前任务 '+(recordState.mission?.id||'未加载'));toast(state.paused?'巡检演示已暂停':'巡检演示已继续');};
-$('takeover').onclick=()=>confirmAction(state.manual?'交还任务控制':'人工接管',state.manual?'交还控制后，可继续任务演示。':'切换为人工控制演示，暂停自动任务。真实设备仍需独立遥控链路与控制权确认。',()=>{state.manual=!state.manual;state.paused=true;update();addEvent(state.manual?'人工接管已确认':'控制权已交还','演示回执 · 自动任务保持暂停');});
-$('protective-stop').onclick=()=>confirmAction(state.stopped?'恢复本地演示':'请求保护停止',state.stopped?'恢复至最初的空中观察演示状态。':'演示暂停任务并请求设备保护停止。网络请求不能替代独立遥控器或物理急停。',()=>{clearInterval(recoveryTimer);clearTimeout(transitTimer);if(state.stopped){Object.assign(state,{stopped:false,paused:false,manual:false,phase:'inspect',point:8,completed:7});$('rover-state').textContent='驻停保持';$('progress-count').textContent='07';$('progress-bar').style.width='58.3%';switchCamera('uav');}else{state.stopped=true;state.paused=true;if(['charging','transit'].includes(state.phase))state.phase='landed';else if(state.phase==='recover')state.phase='inspect';}update();addEvent(state.stopped?'保护停止请求已接受':'本地演示已恢复','演示回执 · 不发送真实设备指令');});
+if($('pause-task'))$('pause-task').onclick=()=>{if(state.readOnly)return;state.paused=!state.paused;update();addEvent(state.paused?'任务暂停已确认':'继续任务已接受','演示回执 · 当前任务 '+(recordState.mission?.id||'未加载'));toast(state.paused?'巡检演示已暂停':'巡检演示已继续');};
+if($('takeover'))$('takeover').onclick=()=>confirmAction(state.manual?'交还任务控制':'人工接管',state.manual?'交还控制后，可继续任务演示。':'切换为人工控制演示，暂停自动任务。真实设备仍需独立遥控链路与控制权确认。',()=>{state.manual=!state.manual;state.paused=true;update();addEvent(state.manual?'人工接管已确认':'控制权已交还','演示回执 · 自动任务保持暂停');});
+if($('protective-stop'))$('protective-stop').onclick=()=>confirmAction(state.stopped?'恢复本地演示':'请求保护停止',state.stopped?'恢复至最初的空中观察演示状态。':'演示暂停任务并请求设备保护停止。网络请求不能替代独立遥控器或物理急停。',()=>{clearInterval(recoveryTimer);clearTimeout(transitTimer);if(state.stopped){Object.assign(state,{stopped:false,paused:false,manual:false,phase:'inspect',point:8,completed:7});$('rover-state').textContent='驻停保持';$('progress-count').textContent='07';$('progress-bar').style.width='58.3%';switchCamera('uav');}else{state.stopped=true;state.paused=true;if(['charging','transit'].includes(state.phase))state.phase='landed';else if(state.phase==='recover')state.phase='inspect';}update();addEvent(state.stopped?'保护停止请求已接受':'本地演示已恢复','演示回执 · 不发送真实设备指令');});
 document.querySelectorAll('[data-device]').forEach(button=>button.onclick=()=>{state.device=button.dataset.device;document.querySelectorAll('[data-device]').forEach(b=>b.setAttribute('aria-selected',String(b===button)));controls();});
 $('mark-anomaly').onclick=()=>markAnomaly();
 $('mark-ground').onclick=()=>markAnomaly('ugv',pointName());
 $('expand-ground').onclick=()=>openDialog('UGV-01 · 地面云台',`<img src="../assets/generated/console/ugv-camera.png" alt="无人车地面云台完整画面"><p class="dialog-muted">A2 Mini · ${pointName()} · 图像样本</p>`);
 $('ground-view').onclick=$('expand-ground').onclick;
 
-$('acknowledge').onclick=()=>{const notice=currentNotice();if(notice)void updateFinding(notice.id,'acknowledged');};
+if($('acknowledge'))$('acknowledge').onclick=()=>{const notice=currentNotice();if(notice)void updateFinding(notice.id,'acknowledged');};
 
-$('all-records').onclick=showRecords;
+if($('all-records'))$('all-records').onclick=showRecords;
 document.querySelectorAll('[data-nav]').forEach(button=>button.onclick=()=>{
  if(button.dataset.nav==='work'){document.querySelector('.camera-panel').scrollIntoView({block:'nearest'});return;}
  if(button.dataset.nav==='records'){showRecords();return;}
@@ -163,7 +169,7 @@ function openBusiness(key){
  const visual=b.image?`<img src="../assets/generated/console/${b.image}" alt="${b.title}独立生成样本">${key==='thermal'?'<span class="heat-scale"></span>':''}`:trendGraphic();
  openDialog(b.title,`<div class="business-summary"><div class="business-visual">${visual}</div><div class="business-metrics">${b.metrics.map(([label,value,unit])=>`<div><span>${label}</span><strong>${value}</strong><small>${unit}</small></div>`).join('')}</div></div><p class="business-description">${b.description}</p><div class="business-list">${b.rows.map(([name,value])=>`<div><span>${name}</span><b>${value}</b></div>`).join('')}</div><div class="business-toolbar" id="business-toolbar"></div><p class="dialog-muted">${b.point} · ${b.tag} · 本地演示数据</p>`,[{label:'加入复查队列',run:()=>addRecheck(b.point)},{label:'查看任务队列',run:showTasks}]);
  document.querySelectorAll('[data-business]').forEach(button=>button.setAttribute('aria-expanded',String(button.dataset.business===key)));
- if(key==='mapping'){$('business-toolbar').innerHTML='<button id="business-map-switch">切换至二维任务地图</button><button id="asset-details">查看 B-08 设施档案</button>';$('business-map-switch').onclick=()=>{closeDialog();if(!document.querySelector('.map-area').classList.contains('is-2d'))$('toggle-map').click();};$('asset-details').onclick=()=>showAsset('B-08 阀组');}
+ if(key==='mapping'){$('business-toolbar').innerHTML='<button id="business-map-switch">打开二维管廊示意图 ↗</button><button id="asset-details">查看 B-08 设施档案</button>';$('business-map-switch').onclick=()=>location.assign('corridor-overview.html?view=2d');$('asset-details').onclick=()=>showAsset('B-08 阀组');}
  if(key==='surface'){$('business-toolbar').innerHTML='<button id="business-observe">打开高位图传</button><button id="business-note">添加观察备注</button>';$('business-observe').onclick=()=>{closeDialog();switchCamera('uav',b.point);};$('business-note').onclick=()=>{closeDialog();switchCamera('uav',b.point);$('mark-anomaly').click();};}
  if(key==='thermal'){$('business-toolbar').innerHTML='<button id="business-ir">在主画面观察热像</button><button id="business-history">查看温度历史</button>';$('business-ir').onclick=()=>{closeDialog();switchCamera('thermal');};$('business-history').onclick=()=>openDialog('C-06 · 温度历史',`<table><thead><tr><th>采样日期</th><th>最高温度</th><th>环境温度</th><th>处理状态</th></tr></thead><tbody><tr><td>2026-09-17</td><td>31.2°C</td><td>22.4°C</td><td>已归档</td></tr><tr><td>2026-09-24</td><td>31.8°C</td><td>22.6°C</td><td>已归档</td></tr><tr><td>2026-10-01</td><td>48.6°C</td><td>22.8°C</td><td>待复核</td></tr></tbody></table><p class="dialog-muted">历史数据为演示样本，不是设备实测结果。</p>`,[{label:'返回温度工作台',run:()=>openBusiness('thermal')}]);}
  if(key==='gas'){$('business-toolbar').innerHTML='<button id="gas-confirm" disabled title="气体传感器尚未接入">保存采样记录 · 未接入</button><button id="gas-point">加入复查队列</button>';$('gas-point').onclick=()=>addRecheck(b.point);}
@@ -177,11 +183,13 @@ function showAsset(point=pointName()){
  openDialog(point+' · 设施档案',`<div class="business-summary">${images[number]?`<img src="../assets/generated/console/${images[number]}" alt="${escapeText(point)}观察样本">`:'<div class="business-visual"><img src="../assets/generated/console/tunnel-overview.png" alt="管廊空间档案"></div>'}<div class="business-list"><div><span>设施编号</span><b>${escapeText(asset?.id||'未匹配后端目录')}</b></div><div><span>所属分区</span><b>${escapeText(region)} 区 · ${regions[region]||'综合舱'}</b></div><div><span>巡检点位</span><b>${escapeText(point)}</b></div><div><span>观察状态</span><b>${ready('findings')?(record?escapeText(statusLabel(record.status)):'暂无记录'):escapeText(recordStateMessage('findings'))}</b></div><div><span>最近记录</span><b>${ready('findings')?(record?escapeText(record.note):'暂无记录'):'尚未加载'}</b></div></div></div><p class="dialog-muted">设施目录与影像为演示样本；业务记录保存至本机后端，目录缺失时禁止绑定其他设施。</p>`,[{label:'加入复查队列',run:()=>addRecheck(point)},{label:'查看巡检记录',primary:true,run:showRecords}]);
 }
 document.querySelectorAll('[data-business]').forEach(b=>b.onclick=()=>openBusiness(b.dataset.business));
-$('site-details').onclick=()=>openDialog('B 区 · 综合舱运行概况','<div class="business-metrics"><div><span>当前作业编组</span><strong>01</strong><small>无人车 / 无人机 / 车载补能</small></div><div><span>任务点位</span><strong>12</strong><small>本次例行巡检</small></div><div><span>空间档案</span><strong>1.28</strong><small>km · 演示区段</small></div><div><span>通信结构</span><strong>AP / STA</strong><small>H100 车端中继</small></div></div><p class="dialog-muted">平台使用样本图像与演示遥测，目前未连接真实设备。</p>');
-$('inspect-point').onclick=()=>showAsset(pointName());
+if($('site-details'))$('site-details').onclick=()=>location.assign('corridor-overview.html?point=B-08');
+if($('inspect-point'))$('inspect-point').onclick=()=>showAsset(pointName());
 document.querySelectorAll('[data-site-point]').forEach(b=>b.onclick=()=>showAsset(b.dataset.sitePoint));
 document.querySelectorAll('[data-map-object]').forEach(b=>b.onclick=()=>{const key=b.dataset.mapObject==='rover'?'ugv':'uav';if(key==='uav')switchCamera('uav');document.querySelector(`[data-device="${key}"]`).click();document.querySelectorAll('.device-panel').forEach(p=>p.classList.toggle('selected',p.classList.contains(key+'-panel')));toast('已选择'+(key==='ugv'?'无人车':'无人机')+'操作');});
-$('surface-finding').onclick=()=>openBusiness('surface');$('instrument-finding').onclick=()=>openBusiness('instrument');$('review-all').onclick=showRecords;$('export-records').onclick=exportRecords;
+if($('surface-finding'))$('surface-finding').onclick=()=>openBusiness('surface');
+if($('instrument-finding'))$('instrument-finding').onclick=()=>openBusiness('instrument');
+if($('review-all'))$('review-all').onclick=showRecords;
+if($('export-records'))$('export-records').onclick=exportRecords;
 update();
-renderEvents();
 void loadRecords();

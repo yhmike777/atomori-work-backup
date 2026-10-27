@@ -17,7 +17,10 @@
   ];
   const primary = ['batteryPercent', 'batteryVoltage', 'batteryCurrent', 'relativeAltitude', 'groundspeed', 'airspeed'];
   let snapshot = null, config = null, receivedAt = 0, lastResponse = null, errorMessage = '', busy = false, stopped = false, pollTimer, renderTimer;
-  const fromRpi = () => config?.liveOnly === true && config.uavFlightConfigured === true;
+  const flightSource = () => Object.hasOwn(config || {}, 'uavFlightSource')
+    ? ['mission-planner', 'raspberry-pi'].includes(config.uavFlightSource) ? config.uavFlightSource : null
+    : config?.liveOnly === true && config.uavFlightConfigured === true ? 'raspberry-pi' : config?.missionPlannerConfigured ? 'mission-planner' : null;
+  const fromRpi = () => flightSource() === 'raspberry-pi';
   const elapsed = () => snapshot ? Math.max(0, (performance.now() - receivedAt) / 1000) : 0;
   const age = value => finite(value) && value >= 0 ? value + elapsed() : null;
   const stateFresh = () => snapshot?.flight?.connected === true && finite(age(snapshot.flight.stateAgeS)) && age(snapshot.flight.stateAgeS) <= 2;
@@ -67,7 +70,8 @@
     }).join('');
     get('telemetry-rows').innerHTML = fields.map(([key, label, unit, digits]) => {
       const item = metric(key);
-      return `<tr><td>${label}</td><td>${item.valid ? item.value.toFixed(digits) + ' ' + unit : '—'}</td><td class="${item.valid ? 'value-valid' : 'value-missing'}">${escape(item.reason)}</td><td>${finite(item.ageS) ? item.ageS.toFixed(2) + ' s' : '—'}</td><td>${escape(item.source)}</td></tr>`;
+      const fieldLabel = key === 'rangefinder' && !fromRpi() ? '测距（方向未确认）' : label;
+      return `<tr><td>${fieldLabel}</td><td>${item.valid ? item.value.toFixed(digits) + ' ' + unit : '—'}</td><td class="${item.valid ? 'value-valid' : 'value-missing'}">${escape(item.reason)}</td><td>${finite(item.ageS) ? item.ageS.toFixed(2) + ' s' : '—'}</td><td>${escape(item.source)}</td></tr>`;
     }).join('');
     const roll = metric('roll'), pitch = metric('pitch'), attitudeValid = roll.valid && pitch.valid;
     get('roll-value').textContent = roll.valid ? roll.value.toFixed(1) + '°' : '—';
@@ -107,15 +111,19 @@
     try {
       if (!config) config = (await AtomoriApi.request('/integrations', { timeoutMs: 4000 })).data;
       if (!config || !['demo', 'upstream-readonly'].includes(config.mode)) throw new Error('遥测配置无效');
-      if (!fromRpi() && !config.missionPlannerConfigured) {
+      if (!flightSource() || (fromRpi() ? !config.uavFlightConfigured : !config.missionPlannerConfigured)) {
         snapshot = null; errorMessage = ''; config = null;
-        throw new Error('Mission Planner 接收服务尚未配置');
+        throw new Error('飞控遥测服务尚未配置');
       }
-      const result = await AtomoriApi.request(fromRpi() ? '/devices/UAV-01/telemetry' : '/devices/UAV-01/mission-planner', { timeoutMs: 4000 });
+      const requestedAt = performance.now();
+      const result = await AtomoriApi.request(fromRpi() ? '/devices/UAV-01/telemetry?source=flight' : '/devices/UAV-01/mission-planner', { timeoutMs: 4000 });
       const expectedSource = fromRpi() ? 'uav-rpi-deploy' : 'mission-planner-mavlink';
       if (!result?.data?.flight || result.data.deviceId !== 'UAV-01' || result.data.source !== expectedSource) throw new Error('遥测响应来源无效');
       if (fromRpi()) result.data.flight.metrics = { ...result.data.flight.metrics, ...result.data.flight.details?.metrics };
-      snapshot = result.data; receivedAt = performance.now(); lastResponse = new Date(); errorMessage = '';
+      snapshot = result.data;
+      const adapterElapsed = snapshot.ageIncludes === 'device-http-and-response-wait' && finite(snapshot.snapshotAgeS) && snapshot.snapshotAgeS >= 0 ? snapshot.snapshotAgeS * 1000 : 0;
+      receivedAt = Math.min(performance.now(), requestedAt + adapterElapsed);
+      lastResponse = new Date(); errorMessage = '';
       get('raw-flight').textContent = JSON.stringify(snapshot, null, 2);
     } catch (error) {
       snapshot = null; errorMessage = AtomoriApi.message(error);

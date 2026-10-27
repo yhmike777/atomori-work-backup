@@ -1,4 +1,79 @@
-# Atomori 巡检控制台工作备份
+# Atomori 巡检控制台
+
+已同步 2026-10-27 22:25 的最新代码包，包含实时巡检控制台、三维产品展示、后端与测试，以及车端页面和相机服务的部署存档。实际源码位于 `source/Atomori-巡检控制台源码`。详细操作见 [使用说明.md](使用说明.md)。
+
+## 下载完整代码
+
+三维模型约 124 MB，使用 **Git LFS** 保存。请安装 [Git LFS](https://git-lfs.com/)，然后运行：
+
+```powershell
+git lfs install
+git clone https://github.com/yhmike777/atomori-work-backup.git
+cd atomori-work-backup
+git lfs pull
+```
+
+推荐使用上述方式获取完整模型；GitHub 的 Download ZIP 可能仅包含 LFS 指针文件。模型下载完成后，`source/Atomori-巡检控制台源码/assets/product-viewer/ugv.glb` 应约为 124 MB。
+
+## 快速打开页面
+
+需要 Node.js 20.19+ 或 22.12+（推荐满足要求的 LTS 版本）。前端及三维资源已构建，无需安装 npm 依赖即可运行。在仓库根目录打开 PowerShell：
+
+```powershell
+$env:PORT = '3001'
+$env:ATOMORI_LIVE_ONLY = 'true'
+$env:ATOMORI_CAR_URL = ''
+$env:ATOMORI_UAV_VISION_URL = ''
+$env:ATOMORI_UAV_FLIGHT_URL = ''
+$env:ATOMORI_MISSION_PLANNER_URL = ''
+node '.\source\Atomori-巡检控制台源码\backend\src\server.js'
+```
+
+浏览器打开 <http://127.0.0.1:3001/marp/巡检控制台.html>。此方式不连接设备；没有真实来源时遥测显示为空。端口占用时修改 `PORT` 并使用对应地址。
+
+## 实时设备模式
+
+首次使用 Mission Planner 接收器时，需要 Python 3，并安装接收器依赖：
+
+```powershell
+cd '.\source\Atomori-巡检控制台源码\backend'
+python -m venv .venv-mavlink
+.\.venv-mavlink\Scripts\python.exe -m pip install -r device\requirements-mission-planner.txt
+```
+
+返回仓库根目录后运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File '.\启动最新版-实时巡检.ps1'
+```
+
+默认端口为 3001，默认断开小车；机载地址使用 `uavpi.local`，Mission Planner 接收源默认 `192.168.1.7`、UDP 14551。换电脑时应修改 Mission Planner 转发目标并允许对应端口入站。新鲜心跳才表示飞控在线。业务记录首次从包内快照复制到 `.runtime/records.json`，之后在该文件中独立保存。
+
+小车已按此前要求关机。仅在明确需要重连且确认小车已上电时，使用 `& '.\启动最新版-实时巡检.ps1' -DisconnectCar:$false`。本次 GitHub 同步没有连接或启动设备。历史入口 `启动最新版-仅无人车.ps1` 为旧配置，当前请使用本节入口。
+
+## 本次更新
+
+- 三维展示、结构展开、零件选择、手势资源及控制台布局。
+- UGV 4 小时电量估算、前视连续 MJPEG 与图传健康判断。
+- 温湿度实时有效期和上次有效读数标记；失联清空旧数据。
+- Mission Planner 显式选源与无人机视频连接门控。
+- 车端位置保留摇杆、相机短暂解码失败重试，以及对应测试。
+
+`车端部署文件/` 是已部署文件的存档，不是完整 ROS 工程；重新部署前先核对并备份车端现有文件。当前设备状态和历史约定见源码目录内的 `AGENTS.md`。旧交接记录保留在 [交接说明.md](交接说明.md)。上游设备工程为 [SmallH0433/UAV-CAR](https://github.com/SmallH0433/UAV-CAR)。
+
+## 修改与验证
+
+后端：在 `source/Atomori-巡检控制台源码/backend` 运行 `node --test`。
+
+三维展示：在 `source/Atomori-巡检控制台源码/product-viewer` 运行 `npm ci`、`npm run build`、`npm test`。
+
+车端摇杆隔离验证：在 `source/Atomori-巡检控制台源码` 运行 `node --test vehicle-ui/test-a2-joystick.mjs`。
+
+仓库不包含依赖目录、虚拟环境、运行日志、SSH 密钥或密码。
+
+## 历史备份说明（2026-10-26 及更早）
+
+以下为旧版本记录，当前启动方式与默认行为以本文上方和《使用说明.md》为准。
 
 2026-10-13 从当前电脑工作目录保存的源码快照。实际项目位于 `source/Atomori-巡检控制台源码`。
 

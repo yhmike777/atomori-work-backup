@@ -23,3 +23,8 @@ id_ed25519*
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Per-checkout runtime data and verification output
+.runtime/
+.checks-*/
+/output/

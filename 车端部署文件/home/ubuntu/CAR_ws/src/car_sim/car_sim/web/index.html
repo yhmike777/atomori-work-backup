@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<title>R680 遥控台</title>
+<style>
+  :root { color-scheme: dark; --accent: #4a7dd4; --card: #1b212b; --line: #2c3442; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px; color: #d7dde6;
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #10131a 0%, #14171c 60%, #101820 100%);
+    min-height: 100vh;
+  }
+  header {
+    max-width: 1240px; margin: 0 auto 16px; display: flex;
+    align-items: baseline; gap: 12px;
+  }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: 1px; }
+  header h1 em { color: var(--accent); font-style: normal; }
+  header .sub { font-size: 12px; color: #7486a0; }
+  #grid {
+    max-width: 1240px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; box-shadow: 0 2px 10px rgba(0,0,0,.25);
+  }
+  .card h2 {
+    font-size: 13px; margin: 0 0 12px; color: #8fa3bf; font-weight: 600;
+    letter-spacing: 2px; display: flex; align-items: center; gap: 8px;
+  }
+  .card h2::before {
+    content: ""; width: 4px; height: 14px; border-radius: 2px;
+    background: var(--accent); display: inline-block;
+  }
+  #pad { display: grid; grid-template-columns: repeat(3, 76px); grid-auto-rows: 58px; gap: 8px; justify-content: center; }
+  #pad button {
+    font-size: 20px; border: 1px solid #3b4a63; border-radius: 10px;
+    background: #273142; color: #e6ecf5; cursor: pointer; user-select: none;
+    touch-action: none; transition: background .12s, transform .05s;
+  }
+  #pad button:hover { background: #31405c; }
+  #pad button:active, #pad button.active { background: var(--accent); transform: scale(.96); }
+  #pad .stop { background: #5a2730; }
+  #pad .stop:hover { background: #6e3038; }
+  #pad .stop:active { background: #a03a48; }
+  .row { display: flex; justify-content: space-between; margin: 6px 0; font-size: 14px; }
+  .row span:first-child { color: #93a1b7; }
+  .row span:last-child { font-family: Consolas, monospace; color: #9fd3a8; }
+  .bad { color: #e08080; }
+  .row span.sensor-alarm { color: #ff8b8b; font-weight: 700; }
+  .row span.sensor-normal { color: #9fd3a8; }
+  .row span.sensor-unknown { color: #a3adbd; }
+  .media {
+    width: 100%; background: #0b0e12; border-radius: 8px; display: block;
+    border: 1px solid #232b38;
+  }
+  #lidar { aspect-ratio: 1; }
+  #gpsMap { width: 100%; height: 260px; border-radius: 8px; background: #0b0e12; border: 1px solid #232b38; }
+  #slamStage {
+    position: relative; margin-top: 10px; width: 100%; aspect-ratio: 1;
+    overflow: hidden; border: 1px solid #465064; border-radius: 8px;
+    background: #808080;
+  }
+  #slamMap { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; image-rendering:pixelated; display:none; }
+  #slamOverlay { position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; }
+  #slamPlaceholder {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index:3;
+    padding: 24px; color: #e2e2e2; font-size: 13px; text-align: center;
+    background: #808080;
+  }
+  #slamLiveBadge {
+    position: absolute; top: 10px; left: 10px; display: none; z-index:4;
+    padding: 4px 8px; border-radius: 999px; color: #fff; background: #202020;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  }
+  #slamLiveBadge::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #fff; }
+  .mapping-meta { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  #slamMapStats { white-space: nowrap; text-align: right; }
+  .cam-label { font-size: 12px; color: #7486a0; margin: 8px 0 0; line-height: 1.5; }
+  .hint { font-size: 12px; color: #7486a0; margin-top: 10px; line-height: 1.6; }
+  .slider-row { margin-top: 12px; font-size: 13px; color: #93a1b7; }
+  .slider-row span { font-family: Consolas, monospace; color: #9fd3a8; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select {
+    max-width: 180px; background: #273142; color: #e6ecf5;
+    border: 1px solid #3b4a63; border-radius: 6px; padding: 3px 6px;
+  }
+  #cruiseBtn, #mappingBtn, #photoBtn, #pusherBtn, #localizeBtn, #relocalizeBtn {
+    width: 100%; padding: 9px 0; font-size: 15px; border: 1px solid #3b4a63;
+    border-radius: 10px; background: #273142; color: #e6ecf5; cursor: pointer;
+    transition: background .12s;
+  }
+  #cruiseBtn:hover, #mappingBtn:hover, #photoBtn:hover, #pusherBtn:hover, #localizeBtn:hover, #relocalizeBtn:hover { background: #31405c; }
+  #cruiseBtn.on, #mappingBtn.on, #pusherBtn.on { background: #2e7d46; border-color: #3da35f; }
+  #cruiseBtn.off, #mappingBtn.off, #pusherBtn.off { background: #273142; }
+  #cruiseBtn.na, #pusherBtn.na { background: #3a3a32; color: #8a8a7a; cursor: not-allowed; }
+  .loc-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  #localizeBtn, #relocalizeBtn { width: 100%; }
+
+  #a2Card { grid-column:1 / -1; min-width:0; }
+  .a2-heading { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:14px; }
+  .a2-heading h2 { margin:0; }
+  .a2-heading>span { color:#aebed0; font-size:12px; }
+  .a2-layout { display:grid; grid-template-columns:minmax(0,1fr) 180px; gap:24px; align-items:center; }
+  .a2-preview { min-width:0; }
+  .a2-video { display:flex; align-items:center; justify-content:center; width:100%; aspect-ratio:16/9; max-height:440px; overflow:hidden; background:#0b1017; border:1px solid #3b4a63; border-radius:10px; }
+  #a2Card #camView { display:block; width:100%; height:100%; max-height:440px; object-fit:contain; border:0; border-radius:0; }
+  .a2-video-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  #a2Card .cam-label { color:#aebed0; line-height:1.6; }
+  #a2Card .a2-video-footer .cam-label { margin:0; }
+  #a2Card button { color:#eaf2fb; background:#273b53; border:1px solid #4b6480; border-radius:8px; padding:10px 14px; cursor:pointer; }
+  #a2Card #photoBtn { width:auto; min-width:94px; font-size:13px; }
+  .a2-controls { display:flex; flex-direction:column; align-items:stretch; gap:8px; padding-left:20px; border-left:1px solid #3b4a63; text-align:center; }
+  .a2-control-title { color:#e7eff8; font-size:14px; font-weight:600; }
+  .a2-stick-wrap { display:flex; flex-direction:column; align-items:center; gap:7px; color:#c2d3e6; font-size:12px; }
+  #a2Joystick { position:relative; width:76px; height:174px; flex:none; border:1px solid #536c88; border-radius:40px; background:linear-gradient(90deg,#101a27,#1e3045,#101a27); touch-action:none; user-select:none; cursor:grab; outline-offset:4px; }
+  #a2Joystick:focus-visible { outline:2px solid #80c8ff; }
+  #a2Joystick[aria-disabled=true] { opacity:.45; cursor:not-allowed; }
+  #a2Joystick[data-direction=up],#a2Joystick[data-direction=down] { border-color:#61c7e0; box-shadow:0 0 0 3px #5dc4da19; cursor:grabbing; }
+  .a2-center { position:absolute; left:9px; right:9px; top:50%; border-top:1px dashed #708aa4; }
+  .a2-travel { position:absolute; left:calc(50% - 2px); top:var(--travel-start,50%); width:4px; height:var(--travel-size,0px); background:#61c7e0; border-radius:2px; pointer-events:none; }
+  .a2-thumb { position:absolute; width:52px; height:52px; left:50%; top:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; transform:translate(-50%,calc(-50% + var(--stick-y,0px))); border:1px solid #87a6c7; border-radius:50%; background:linear-gradient(#4c7196,#2c4868); box-shadow:0 3px 9px #0006,inset 0 1px 0 #bddcff66; pointer-events:none; }
+  .a2-thumb i { display:block; width:18px; border-top:2px solid #d7e8f5; border-radius:2px; }
+  #a2Card #a2Stop { width:100%; background:#54313a; border-color:#9b626c; }
+  #a2Card #a2Stop:hover { background:#71404b; }
+  #a2Card .a2-controls .cam-label { margin:0; font-size:12px; }
+  @media(max-width:640px) {
+    .a2-layout { grid-template-columns:minmax(0,1fr); gap:16px; }
+    .a2-controls { display:grid; grid-template-columns:108px minmax(0,1fr); align-items:center; padding:14px 0 0; border-left:0; border-top:1px solid #3b4a63; gap:10px 16px; text-align:left; }
+    .a2-control-title { grid-column:2; }
+    .a2-stick-wrap { grid-column:1; grid-row:1 / 5; }
+    #a2Stop,#a2State,#a2Hint { grid-column:2; }
+  }
+  @media (max-width: 600px) { #grid { grid-template-columns: minmax(0, 1fr); } }
+
+  #leadscrewPanel { grid-column: 1 / -1; }
+  .ls-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .ls-fields label { display:flex; flex-direction:column; gap:8px; color:#93a1b7; font-size:13px; }
+  .ls-fields input,.ls-fields select { width:100%; max-width:none; background:#273142; color:#e6ecf5; border:1px solid #3b4a63; border-radius:7px; padding:9px; }
+  .ls-actions { display:flex; gap:10px; flex-wrap:wrap; margin:16px 0; }
+  .ls-actions button { background:#273142; color:#e6ecf5; border:1px solid #3b4a63; border-radius:9px; padding:11px 20px; cursor:pointer; }
+  #lsMove { background:#315f9f; } #lsStop { background:#5a2730; }
+  .ls-actions button:disabled { opacity:.4; cursor:not-allowed; }
+  #lsOutput { white-space:pre-wrap; overflow-wrap:anywhere; color:#93a1b7; font-size:12px; }
+  .ls-hidden { display:none !important; }
+  .ls-sim-panel { margin-top:12px; padding:14px; border:1px solid #3b4a63; border-radius:9px; background:#1a2230; }
+  .ls-sim-panel strong { color:#dce8fa; }
+  .ls-sim-row { display:flex; justify-content:space-between; gap:16px; padding:7px 0; color:#93a1b7; font-size:13px; }
+  .ls-sim-row + .ls-sim-row { border-top:1px solid #2d394c; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>R680 <em>遥控台</em></h1>
+    <span class="sub">阿克曼小车 · 雷达 / GPS / 建图 / 画面</span>
+  </header>
+
+  <div id="grid">
+    <div class="card">
+      <h2>遥控</h2>
+      <div id="pad">
+        <span></span>
+        <button data-cmd="forward" title="W / ↑">▲</button>
+        <span></span>
+        <button data-cmd="left" title="A / ←">◀</button>
+        <button class="stop" data-cmd="stop" title="空格">■</button>
+        <button data-cmd="right" title="D / →">▶</button>
+        <span></span>
+        <button data-cmd="backward" title="S / ↓">▼</button>
+        <span></span>
+      </div>
+      <div class="slider-row">
+        线速度 <span id="linLabel">0.30</span> m/s
+        <input type="range" id="lin" min="0.05" max="0.50" step="0.05" value="0.30">
+      </div>
+      <div class="slider-row">
+        角速度 <span id="angLabel">0.50</span> rad/s
+        <input type="range" id="ang" min="0.10" max="0.70" step="0.05" value="0.50">
+      </div>
+      <div class="slider-row">
+        <button id="cruiseBtn" class="cruise" title="自动避障定速巡航">开启巡航</button>
+      </div>
+      <div class="slider-row">
+        <button id="pusherBtn" class="off" title="停机坪居中机构：4 个推杆同时向内/向外">收拢推杆（4 杆向内）</button>
+      </div>
+      <div class="hint">
+        开启巡航后小车自主避障；巡航中按住 A/D 可保持巡航速度手动调整方向（W/S 直接接管速度），松手恢复自主避障。<br>
+        键盘：WASD / 方向键，按住行驶，可组合（W+A 弧线转弯），松开或空格停车。
+        阿克曼底盘不能原地自旋：单独按 A/D 只会原地预打方向，叠加 W/S 才会转弯。
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>状态</h2>
+      <div class="row"><span>连接</span><span id="conn" class="bad">断开</span></div>
+      <div class="row"><span>位姿 x / y / yaw</span><span id="pose">-</span></div>
+      <div class="row"><span>速度</span><span id="speed">-</span></div>
+      <div class="row"><span>控制权</span><span id="authority">-</span></div>
+      <div class="row"><span>mux 原因</span><span id="reason">-</span></div>
+      <div class="row"><span>网关输出 v / w</span><span id="gw">-</span></div>
+      <div class="row"><span>车尾超声波（Trig GPIO4 / Echo GPIO18）</span><span id="ultrasonic">-</span></div>
+      <div class="row"><span>左侧超声波（Trig GPIO12 / Echo GPIO25）</span><span id="ultrasonicLeft">-</span></div>
+      <div class="row"><span>右侧超声波（Trig 物理8/GPIO14 · Echo 物理10/GPIO15）</span><span id="ultrasonicRight">-</span></div>
+      <h2 style="margin-top:16px">环境温湿度 · DHT11（GPIO20）</h2>
+      <div class="row"><span>温度</span><span id="envTemperature">—</span></div>
+      <div class="row"><span>相对湿度</span><span id="envHumidity">—</span></div>
+      <div class="cam-label" id="envState" role="status">等待传感器数据…</div>
+      <h2 style="margin-top:16px">环境感应开关</h2>
+      <div class="row"><span>声音检测（GPIO6）</span><span id="soundValue">—</span></div>
+      <div class="cam-label" id="soundState" role="status">等待数据…</div>
+      <div class="row"><span>酒精检测（GPIO13）</span><span id="alcoholValue">—</span></div>
+      <div class="cam-label" id="alcoholState" role="status">等待数据…</div>
+      <div class="row"><span>易燃气体检测（GPIO19）</span><span id="mq2Value">—</span></div>
+      <div class="cam-label" id="mq2State" role="status">等待数据…</div>
+      <div class="row"><span>火焰检测（GPIO26）</span><span id="flameValue">—</span></div>
+      <div class="cam-label" id="flameState" role="status">等待数据…</div>
+      <h2 style="margin-top:16px">GPS 定位</h2>
+      <div class="row"><span>定位状态</span><span id="gpsStatus">-</span></div>
+      <div class="row"><span>纬度 / 经度</span><span id="gpsPos">-</span></div>
+      <div class="row"><span>海拔</span><span id="gpsAlt">-</span></div>
+    </div>
+
+    <div class="card" id="a2Card">
+      <div class="a2-heading"><h2>相机画面</h2><span>A2 mini · 实时预览</span></div>
+      <div class="a2-layout">
+        <div class="a2-preview">
+          <div class="a2-video"><img id="camView" class="media" alt="A2 mini 相机实时画面"></div>
+          <div class="a2-video-footer"><span class="cam-label">480 × 270 · 仅显示，不参与避障</span><button id="photoBtn" title="保存当前帧">◉ 拍照</button></div>
+          <div class="cam-label" id="photoHint">点击拍照下载当前画面到本地</div>
+        </div>
+        <div class="a2-controls">
+          <div class="a2-control-title">云台俯仰</div>
+          <div class="a2-stick-wrap"><span aria-hidden="true">↑ 向上</span>
+            <div id="a2Joystick" role="slider" tabindex="0" aria-label="云台俯仰摇杆" aria-orientation="vertical" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="停止" aria-disabled="true" aria-describedby="a2Hint" data-direction="stop">
+              <i class="a2-travel" aria-hidden="true"></i><i class="a2-center" aria-hidden="true"></i><span class="a2-thumb" aria-hidden="true"><i></i><i></i><i></i></span>
+            </div><span aria-hidden="true">↓ 向下</span>
+          </div>
+          <button id="a2Stop">■ 停止云台</button>
+          <div class="cam-label" id="a2State" role="status">正在连接云台…</div>
+          <div class="cam-label" id="a2Hint" role="status">上下拖动 · 松手停转，滑块保留位置</div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="card" id="leadscrewPanel">
+      <h2>丝杆电机控制 · CL42</h2>
+      <div class="ls-fields">
+        <label>电机<select id="lsMotor"><option value="1">1 号电机</option><option value="2">2 号电机</option><option value="0">两台同时</option><option value="simulation">仿真</option></select></label>
+        <label id="lsDirectionField">方向<select id="lsDirection"><option value="0">向内</option><option value="1">向外</option></select></label>
+        <label>转速（rpm）<input id="lsRpm" type="number" min="0.1875" max="1000" step="any" value="6"></label>
+        <label id="lsDistanceField">本次行程（mm）<input id="lsDistance" type="number" min="0.00125" max="63.5" step="any" value="1"></label>
+        <label>加速时间（秒）<input id="lsRamp" type="number" min="0.05" max="5" step="any" value="1"></label>
+      </div>
+      <div class="ls-sim-panel ls-hidden" id="lsSimulationPanel">
+        <strong id="lsSimulationTitle">归中参数（固定）</strong>
+        <div class="ls-sim-row"><span>1 号电机</span><span>每侧 60 mm · 30 圈 · 48,000 脉冲</span></div>
+        <div class="ls-sim-row"><span>2 号电机</span><span>每侧 20 mm · 10 圈 · 16,000 脉冲</span></div>
+        <div class="hint" id="lsSimulationSequence">归中顺序：1 号向内运行 60 mm，完成后 2 号再向内运行 20 mm。</div>
+      </div>
+      <div class="ls-actions"><button id="lsMove" disabled>开始运动</button><button id="lsStop">停止全部丝杆</button><button id="lsReset" disabled>EN 复位</button></div>
+      <p class="hint">无物理限位反馈，请确认可用行程。仿真模式固定行程与方向，只允许调整转速和加速时间；复位不会自动启动，也不代表报警已消除。</p>
+      <div id="lsState" role="status">等待丝杆节点…</div>
+      <div class="hint" id="lsPosition">位置为节点启动后的相对脉冲估算，不是实际位置</div>
+      <div id="lsError" class="bad" role="alert"></div>
+      <pre id="lsOutput"></pre>
+    </div>
+
+    <div class="card">
+      <h2>雷达扫描</h2>
+      <canvas id="lidar" class="media" width="320" height="320"></canvas>
+      <div class="cam-label">车头朝上，圆环间隔 1 m（显示半径 6 m，红点=障碍回波）</div>
+    </div>
+
+    <div class="card">
+      <h2>GPS 地图</h2>
+      <div id="gpsMap"></div>
+      <div class="cam-label">高德瓦片（需联网），蓝点=当前位置（WGS-84→GCJ-02 已纠偏）</div>
+    </div>
+
+    <div class="card">
+      <h2>激光建图</h2>
+      <button id="mappingBtn" class="off" title="一键建图">▶ 开始建图</button>
+      <div class="hint" style="margin-top:6px">点击后小车自动开启巡航，在区域内自主走动建图（可随时用遥控接管）；再点一次停止并自动保存地图</div>
+      <div id="slamStage">
+        <img id="slamMap" alt="实时激光建图">
+        <canvas id="slamOverlay" aria-label="建图起点和车辆实时位置"></canvas>
+        <div id="slamPlaceholder">点击“开始建图”后，这里会实时显示扫描形成的地图</div>
+        <div id="slamLiveBadge">实时建图</div>
+      </div>
+      <div class="mapping-meta">
+        <div class="cam-label" id="slamMapHint">黑=占据，白=空闲，灰=尚未扫描；红点=初始点，绿点/箭头=车辆位置与方向</div>
+        <div class="cam-label" id="slamMapStats">等待开始</div>
+      </div>
+      <div class="row" style="margin-top:8px"><span>预览已保存地图</span>
+        <select id="savedMaps"></select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>自主导航</h2>
+      <div class="row"><span>定位地图</span><select id="localizationMap"></select></div>
+      <div class="loc-actions">
+        <button id="localizeBtn">◎ 激光定位</button>
+        <button id="relocalizeBtn">↻ 重新搜索</button>
+      </div>
+      <div class="row"><span>定位状态</span><span id="localizationState">未启动</span></div>
+      <div class="row"><span>地图坐标</span><span id="localizationPose">-</span></div>
+      <div class="hint" id="localizationHint">选择已建地图后，雷达会在整张地图中匹配小车位置；定位期间车辆保持停止也可逐步收敛。</div>
+      <button id="autoCruiseBtn" class="off" title="自动巡航">▶ 自动巡航</button>
+      <div class="hint" style="margin-top:6px">小车从初始点出发，绕地图可行走区域一圈后回到初始点（结合激光雷达实时避障）</div>
+      <div id="navMapContainer" style="position:relative; margin-top:10px; display:none;">
+        <canvas id="navMap" class="media" width="320" height="320" style="cursor:crosshair;"></canvas>
+        <div class="cam-label" id="navHint">加载地图后显示</div>
+      </div>
+      <div class="row" style="margin-top:8px"><span>巡航状态</span>
+        <span id="autoCruiseStatus">未启动</span>
+      </div>
+      <div class="row" style="margin-top:4px"><span>初始点</span>
+        <span id="navStart">未设置</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  var linInput = document.getElementById("lin");
+  var angInput = document.getElementById("ang");
+  var linLabel = document.getElementById("linLabel");
+  var angLabel = document.getElementById("angLabel");
+  linInput.oninput = function () { linLabel.textContent = Number(linInput.value).toFixed(2); };
+  angInput.oninput = function () { angLabel.textContent = Number(angInput.value).toFixed(2); };
+
+  // 定速巡航开关（自动避障验证）
+  var cruiseBtn = document.getElementById("cruiseBtn");
+  var cruiseOn = false, cruiseAvail = false;
+  function renderCruise() {
+    if (!cruiseAvail) { cruiseBtn.textContent = "巡航不可用（避障节点离线）"; cruiseBtn.className = "na"; return; }
+    cruiseBtn.textContent = cruiseOn ? "■ 关闭巡航（巡航中）" : "▶ 开启巡航";
+    cruiseBtn.className = cruiseOn ? "on" : "off";
+  }
+  cruiseBtn.addEventListener("click", function () {
+    if (!cruiseAvail) { return; }
+    fetch("/api/ugv/cruise", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable: !cruiseOn })
+    }).then(function (r) { return r.json(); }).then(function (resp) {
+      if (resp.accepted) { cruiseOn = !cruiseOn; renderCruise(); }
+    }).catch(function () { /* 状态轮询会纠正显示 */ });
+  });
+  renderCruise();
+
+  // 停机坪推杆开合（第一次按下四杆向内收拢，再按向外张开；
+  // 实际状态由 /api/status 的 leadscrew 字段 2Hz 轮询纠正）
+  var pusherBtn = document.getElementById("pusherBtn");
+  var pusherClosed = false, pusherAvail = false;
+  var PUSHER_STATE_NAMES = ["外侧自锁", "向内运动", "内侧自锁", "向外运动", "中途自锁"];
+  function renderPusher(posText) {
+    if (!pusherAvail) { pusherBtn.textContent = "推杆不可用（丝杆节点离线）"; pusherBtn.className = "na"; return; }
+    pusherBtn.textContent = pusherClosed
+      ? "张开推杆（当前：收拢" + posText + "）"
+      : "收拢推杆（当前：张开" + posText + "）";
+    pusherBtn.className = pusherClosed ? "on" : "off";
+  }
+  pusherBtn.addEventListener("click", function () {
+    if (!pusherAvail) { return; }
+    fetch("/api/leadscrew/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}"
+    }).then(function (r) { return r.json(); }).then(function (resp) {
+      if (resp.accepted) { pusherClosed = (resp.direction === "in"); renderPusher(""); }
+    }).catch(function () { /* 状态轮询会纠正显示 */ });
+  });
+  renderPusher("");
+
+  // 组合按键状态：阿克曼转向需要 v 与 ω 同时下发（弧线行驶），
+  // 因此 W/S 与 A/D 可叠加，而不是单指令互斥。
+  var keys = { forward: false, backward: false, left: false, right: false };
+  var sendTimer = null;
+
+  function currentCmd() {
+    var lin = 0, ang = 0;
+    if (keys.forward) { lin += Number(linInput.value); }
+    if (keys.backward) { lin -= Number(linInput.value); }
+    if (keys.left) { ang += Number(angInput.value); }
+    if (keys.right) { ang -= Number(angInput.value); }
+    return { linear: lin, angular: ang };
+  }
+
+  function anyActive() {
+    return keys.forward || keys.backward || keys.left || keys.right;
+  }
+
+  function sendOnce(cmd) {
+    fetch("/api/ugv/teleop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cmd)
+    }).catch(function () { /* 状态轮询会反映连接状态 */ });
+  }
+
+  function refreshSending() {
+    if (anyActive()) {
+      if (!sendTimer) {
+        sendOnce(currentCmd());
+        sendTimer = setInterval(function () { sendOnce(currentCmd()); }, 100);
+      }
+    } else if (sendTimer) {
+      clearInterval(sendTimer);
+      sendTimer = null;
+      sendOnce({ linear: 0, angular: 0 });
+    }
+  }
+
+  function press(name, on) {
+    keys[name] = on;
+    var button = document.querySelector('#pad button[data-cmd="' + name + '"]');
+    if (button) { button.classList.toggle("active", on); }
+    refreshSending();
+  }
+
+  function stopCommand() {
+    keys.forward = keys.backward = keys.left = keys.right = false;
+    document.querySelectorAll("#pad button").forEach(function (b) { b.classList.remove("active"); });
+    refreshSending();
+  }
+
+  document.querySelectorAll("#pad button").forEach(function (button) {
+    var name = button.dataset.cmd;
+    button.addEventListener("pointerdown", function (event) {
+      event.preventDefault();
+      if (name === "stop") { stopCommand(); sendOnce({ linear: 0, angular: 0 }); return; }
+      press(name, true);
+    });
+    button.addEventListener("pointerup", function () {
+      if (name !== "stop") { press(name, false); }
+    });
+    button.addEventListener("pointerleave", function () {
+      if (name !== "stop" && keys[name]) { press(name, false); }
+    });
+  });
+
+  var KEYMAP = {
+    KeyW: "forward", ArrowUp: "forward",
+    KeyS: "backward", ArrowDown: "backward",
+    KeyA: "left", ArrowLeft: "left",
+    KeyD: "right", ArrowRight: "right"
+  };
+  document.addEventListener("keydown", function (event) {
+    if (event.repeat) { return; }
+    if (event.code === "Space") { event.preventDefault(); stopCommand(); sendOnce({ linear: 0, angular: 0 }); return; }
+    var name = KEYMAP[event.code];
+    if (name) {
+      event.preventDefault();
+      press(name, true);
+    }
+  });
+  document.addEventListener("keyup", function (event) {
+    var name = KEYMAP[event.code];
+    if (name) { press(name, false); }
+  });
+  window.addEventListener("blur", stopCommand);
+
+  // 状态轮询（2Hz）
+  var conn = document.getElementById("conn");
+  function renderDigitalInputs(digital) {
+    ["sound", "alcohol", "mq2", "flame"].forEach(function (name) {
+      var input = (digital || {})[name] || {};
+      var valid = input.available && !input.stale && typeof input.triggered === "boolean";
+      var value = document.getElementById(name + "Value");
+      value.textContent = !input.available || input.stale ? "离线" : !valid ? "触发电平未配置"
+        : input.triggered ? (name === "sound" ? "检测到声音" : "报警") : "正常";
+      value.classList.toggle("sensor-alarm", valid && input.triggered);
+      value.classList.toggle("sensor-normal", valid && !input.triggered);
+      value.classList.toggle("sensor-unknown", !valid);
+      var state = document.getElementById(name + "State");
+      var rawLevel = input.raw_level === 1 ? "高" : input.raw_level === 0 ? "低" : "未知";
+      state.textContent = input.stale ? "数据已过期 · 等待更新" : !input.available
+        ? "未收到有效数据" : "实时采集 · DO " + rawLevel + "电平 · "
+          + input.age_s.toFixed(1) + " 秒前更新";
+      state.classList.toggle("bad", !input.available || input.stale);
+    });
+  }
+  function pollStatus() {
+    fetch("/api/status").then(function (resp) { return resp.json(); }).then(function (s) {
+      var env = s.environment || {};
+      renderDigitalInputs(env.digital);
+      var hasEnv = Number.isFinite(env.temperature_c) && Number.isFinite(env.humidity_percent);
+      document.getElementById("envTemperature").textContent = hasEnv ? env.temperature_c.toFixed(1) + " °C" : "—";
+      document.getElementById("envHumidity").textContent = hasEnv ? env.humidity_percent.toFixed(0) + " % RH" : "—";
+      var envState = document.getElementById("envState");
+      envState.textContent = !env.available ? "传感器服务离线" : !hasEnv
+        ? (env.consecutive_errors >= 3 ? "DHT11 读取失败 · 请检查 GPIO20 接线" : "等待有效读数，正在重试…") :
+        (env.stale ? "数据已过期 · " : env.error ? "读取重试中，保留上次读数 · " : "正常 · ") + env.age_s.toFixed(0) + " 秒前更新";
+      envState.classList.toggle("bad", !env.available || env.stale);
+      conn.textContent = "已连接";
+      conn.classList.remove("bad");
+      if (!(s.camera || {}).ready) {
+        cameraWasOffline = true;
+        if (camView) camView.style.visibility = "hidden";
+      } else if (cameraWasOffline) {
+        cameraWasOffline = false;
+        refreshCamera();
+      }
+      var pose = s.odom && s.odom.pose;
+      document.getElementById("pose").textContent = pose
+        ? pose[0].toFixed(2) + " / " + pose[1].toFixed(2) + " / " + pose[2].toFixed(2)
+        : "-";
+      document.getElementById("speed").textContent =
+        s.odom ? s.odom.speed_mps.toFixed(2) + " m/s" : "-";
+      var mux = s.ugv_control_mux || {};
+      document.getElementById("authority").textContent = mux.authority || "-";
+      document.getElementById("reason").textContent = mux.reason || "-";
+      var gw = s.ugv_command_gateway || {};
+      document.getElementById("gw").textContent =
+        (gw.output_linear_mps !== undefined)
+          ? gw.output_linear_mps.toFixed(2) + " / " + gw.output_angular_rps.toFixed(2)
+          : "-";
+      // 三路独立测距；仅车尾的 <25cm 对应脱困倒车停距阈值。
+      [
+        ["ultrasonic", s.ultrasonic, true],
+        ["ultrasonicLeft", s.ultrasonic_left, false],
+        ["ultrasonicRight", s.ultrasonic_right, false]
+      ].forEach(function(channel) {
+        var usEl = document.getElementById(channel[0]);
+        var us = channel[1] || {};
+        var valid = typeof us.range === "number" && Number.isFinite(us.range) &&
+          typeof us.age_s === "number" && us.age_s <= 1.0;
+        usEl.textContent = valid ? us.range.toFixed(2) + " m" : "未接入或无有效回波";
+        usEl.className = (valid && channel[2] && us.range < 0.25) ? "bad" : "";
+      });
+      var av = s.avoidance || {};
+      cruiseAvail = !!av.available;
+      if (av.cruise_enabled !== null && av.cruise_enabled !== undefined) {
+        cruiseOn = !!av.cruise_enabled;
+      }
+      renderCruise();
+      // 推杆状态：在线 = 节点 2 秒内有状态上报；收拢判定与后端一致
+      var ls = s.leadscrew || {};
+      var lsSt = ls.status;
+      pusherAvail = !!(lsSt && (ls.age_s === null || ls.age_s === undefined || ls.age_s <= 2.0));
+      if (lsSt) {
+        pusherClosed = !!ls.closed;
+        var posText = " " + lsSt.pos_mm.map(function (p) { return p.toFixed(0); }).join("/") + "mm";
+        var st0 = PUSHER_STATE_NAMES[lsSt.state[0]] || "?";
+        renderPusher(posText + "·" + st0);
+      } else {
+        renderPusher("");
+      }
+      var wasMapping = mappingOn;
+      mappingOn = !!(s.mapping && s.mapping.active);
+      if (!wasMapping && mappingOn) { resetLiveMappingView(); }
+      renderMapping();
+      updateMappingProgress(s);
+      if (wasMapping && !mappingOn) { refreshSavedMaps(); }
+      var fix = (s.gps || {}).fix;
+      document.getElementById("gpsStatus").textContent = fix
+        ? (fix.status >= 0 ? "已定位" : "搜星中（无定位）") : "GPS 离线";
+      document.getElementById("gpsPos").textContent = (fix && fix.status >= 0)
+        ? fix.latitude.toFixed(7) + " / " + fix.longitude.toFixed(7) : "-";
+      document.getElementById("gpsAlt").textContent = (fix && fix.status >= 0)
+        ? fix.altitude.toFixed(1) + " m" : "-";
+      if (fix && fix.status >= 0 && fix.latitude !== null) {
+        updateGpsMap(fix.longitude, fix.latitude);
+      }
+    }).catch(function () {
+      conn.textContent = "断开";
+      conn.classList.add("bad");
+      document.getElementById("envState").textContent = "连接断开 · 显示上次读数";
+      document.getElementById("envState").classList.add("bad");
+      ["sound", "alcohol", "mq2", "flame"].forEach(function (name) {
+        var value = document.getElementById(name + "Value");
+        value.textContent = "离线";
+        value.classList.remove("sensor-alarm", "sensor-normal");
+        value.classList.add("sensor-unknown");
+        document.getElementById(name + "State").textContent = "连接断开 · 等待恢复";
+        document.getElementById(name + "State").classList.add("bad");
+      });
+    });
+  }
+  pollStatus();
+  setInterval(pollStatus, 250);
+
+  // 雷达扫描图（5Hz 轮询 /api/scan.json，canvas 极坐标绘制）
+  var lidarCanvas = document.getElementById("lidar");
+  var lctx = lidarCanvas.getContext("2d");
+  var LIDAR_RANGE = 6;  // 显示半径 m（超出点不画）
+  function drawLidar(data) {
+    var w = lidarCanvas.width, h = lidarCanvas.height;
+    var cx = w / 2, cy = h / 2;
+    var scale = (Math.min(w, h) / 2 - 10) / LIDAR_RANGE;
+    lctx.clearRect(0, 0, w, h);
+    // 距离环 + 标注
+    lctx.strokeStyle = "#243044";
+    lctx.fillStyle = "#5a6b85";
+    lctx.font = "10px sans-serif";
+    for (var r = 1; r <= LIDAR_RANGE; r++) {
+      lctx.beginPath();
+      lctx.arc(cx, cy, r * scale, 0, Math.PI * 2);
+      lctx.stroke();
+      lctx.fillText(r + "m", cx + r * scale - 14, cy - 3);
+    }
+    // 前向参考线（车头朝上）
+    lctx.strokeStyle = "#2c3a52";
+    lctx.beginPath();
+    lctx.moveTo(cx, cy); lctx.lineTo(cx, 6);
+    lctx.stroke();
+    // 扫描点：angle 0=正前方，正值向左（ROS 左手系惯例）
+    var pts = data.points || [];
+    lctx.fillStyle = "#e74c3c";
+    for (var i = 0; i < pts.length; i++) {
+      var a = pts[i][0] * Math.PI / 180, d = pts[i][1];
+      if (d > LIDAR_RANGE) { continue; }
+      var x = cx - d * Math.sin(a) * scale;
+      var y = cy - d * Math.cos(a) * scale;
+      lctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+    }
+    // 脱困路径（绿色实线，车体系 x 前 y 左，从车底中心连到各路径点）
+    var ep = data.escape_path || [];
+    if (ep.length > 0) {
+      lctx.strokeStyle = "#2ecc71";
+      lctx.lineWidth = 2;
+      lctx.beginPath();
+      lctx.moveTo(cx, cy);
+      for (var j = 0; j < ep.length; j++) {
+        lctx.lineTo(cx - ep[j][1] * scale, cy - ep[j][0] * scale);
+      }
+      lctx.stroke();
+      lctx.lineWidth = 1;
+    }
+    // 车体（指向上方的三角）
+    lctx.fillStyle = "#3f6db3";
+    lctx.beginPath();
+    lctx.moveTo(cx, cy - 8);
+    lctx.lineTo(cx - 5, cy + 6);
+    lctx.lineTo(cx + 5, cy + 6);
+    lctx.closePath();
+    lctx.fill();
+  }
+  var scanBusy = false;
+  function pollScan() {
+    if (scanBusy) { return; }
+    scanBusy = true;
+    fetch("/api/scan.json", { cache: "no-store" })
+      .then(function (r) { if (!r.ok) { throw new Error("scan unavailable"); } return r.json(); })
+      .then(drawLidar)
+      .catch(function () { /* 下轮重试 */ })
+      .finally(function () { scanBusy = false; });
+  }
+  pollScan();
+  setInterval(pollScan, 200);
+
+  // ---------- GPS 地图（Leaflet + 高德瓦片，蓝点=当前位置） ----------
+  // WGS-84 → GCJ-02 纠偏（高德瓦片用 GCJ-02 坐标，不纠偏会偏几十~几百米）
+  function wgs2gcj(lng, lat) {
+    var a = 6378245.0, ee = 0.00669342162296594323;
+    if (lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271) {
+      return [lng, lat];  // 国外不偏移
+    }
+    function tLat(x, y) {
+      var ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+      ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+      ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0;
+      ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0;
+      return ret;
+    }
+    function tLng(x, y) {
+      var ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+      ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+      ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0;
+      ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0;
+      return ret;
+    }
+    var dLat = tLat(lng - 105.0, lat - 35.0), dLng = tLng(lng - 105.0, lat - 35.0);
+    var radLat = lat / 180.0 * Math.PI, magic = Math.sin(radLat);
+    magic = 1 - ee * magic * magic;
+    var sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+    dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI);
+    return [lng + dLng, lat + dLat];
+  }
+
+  var gpsMap = null, gpsDot = null, gpsMapCentered = false;
+  function updateGpsMap(lng, lat) {
+    if (typeof L === "undefined") { return; }  // Leaflet CDN 加载失败时静默降级
+    var gcj = wgs2gcj(lng, lat);
+    if (!gpsMap) {
+      gpsMap = L.map("gpsMap", { zoomControl: true, attributionControl: false });
+      L.tileLayer(
+        "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+        { subdomains: ["1", "2", "3", "4"], maxZoom: 19 }
+      ).addTo(gpsMap);
+      gpsDot = L.circleMarker([gcj[1], gcj[0]], {
+        radius: 7, color: "#ffffff", weight: 2,
+        fillColor: "#2a84ff", fillOpacity: 1.0
+      }).addTo(gpsMap);
+    }
+    gpsDot.setLatLng([gcj[1], gcj[0]]);
+    if (!gpsMapCentered) {
+      gpsMap.setView([gcj[1], gcj[0]], 17);
+      gpsMapCentered = true;
+    }
+  }
+
+  // ---------- 一键建图 + 实时占据栅格 ----------
+  var mappingBtn = document.getElementById("mappingBtn");
+  var slamStage = document.getElementById("slamStage");
+  var slamImg = document.getElementById("slamMap");
+  var slamOverlay = document.getElementById("slamOverlay");
+  var slamOverlayCtx = slamOverlay.getContext("2d");
+  var slamHint = document.getElementById("slamMapHint");
+  var slamStats = document.getElementById("slamMapStats");
+  var slamPlaceholder = document.getElementById("slamPlaceholder");
+  var slamLiveBadge = document.getElementById("slamLiveBadge");
+  var mappingOn = false;
+  var slamHasFrame = false;
+  var slamFetchBusy = false;
+  var slamLiveReady = false;
+  var slamObjectUrl = null;
+  var slamMapInfo = null;
+  var slamInitialPose = null;
+  var slamRobotPose = null;
+  var slamImageWidth = 0;
+  var slamImageHeight = 0;
+
+  function clearSlamMarkers() {
+    var dpr = window.devicePixelRatio || 1;
+    var width = Math.max(1, slamStage.clientWidth);
+    var height = Math.max(1, slamStage.clientHeight);
+    slamOverlay.width = Math.round(width * dpr);
+    slamOverlay.height = Math.round(height * dpr);
+    slamOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    slamOverlayCtx.clearRect(0, 0, width, height);
+    return [width, height];
+  }
+
+  function slamWorldToCanvas(pose, width, height) {
+    if (!pose || !slamMapInfo || !slamMapInfo.origin || !slamMapInfo.resolution) { return null; }
+    var imageWidth = slamImageWidth || slamMapInfo.width;
+    var imageHeight = slamImageHeight || slamMapInfo.height;
+    if (!imageWidth || !imageHeight) { return null; }
+    var scale = Math.min(width / imageWidth, height / imageHeight);
+    var offsetX = (width - imageWidth * scale) / 2;
+    var offsetY = (height - imageHeight * scale) / 2;
+    var origin = slamMapInfo.origin;
+    var theta = Number(origin[2]) || 0;
+    var dx = pose[0] - origin[0], dy = pose[1] - origin[1];
+    var gx = (Math.cos(theta) * dx + Math.sin(theta) * dy) / slamMapInfo.resolution;
+    var gy = (-Math.sin(theta) * dx + Math.cos(theta) * dy) / slamMapInfo.resolution;
+    if (gx < 0 || gy < 0 || gx > slamMapInfo.width || gy > slamMapInfo.height) { return null; }
+    return [offsetX + gx * scale, offsetY + (slamMapInfo.height - gy) * scale, pose[2] - theta];
+  }
+
+  function drawSlamMarkers() {
+    var size = clearSlamMarkers();
+    if (!slamHasFrame) { return; }
+    var start = slamWorldToCanvas(slamInitialPose, size[0], size[1]);
+    if (start) {
+      slamOverlayCtx.beginPath();
+      slamOverlayCtx.arc(start[0], start[1], 5, 0, Math.PI * 2);
+      slamOverlayCtx.fillStyle = "#e04444";
+      slamOverlayCtx.fill();
+      slamOverlayCtx.lineWidth = 1.5;
+      slamOverlayCtx.strokeStyle = "#ffffff";
+      slamOverlayCtx.stroke();
+    }
+    var robot = slamWorldToCanvas(slamRobotPose, size[0], size[1]);
+    if (!robot) { return; }
+    var arrowLength = 14;
+    var vx = Math.cos(robot[2]), vy = -Math.sin(robot[2]);
+    var tipX = robot[0] + vx * arrowLength;
+    var tipY = robot[1] + vy * arrowLength;
+    slamOverlayCtx.strokeStyle = "#22c875";
+    slamOverlayCtx.fillStyle = "#22c875";
+    slamOverlayCtx.lineWidth = 2;
+    slamOverlayCtx.beginPath();
+    slamOverlayCtx.moveTo(robot[0], robot[1]);
+    slamOverlayCtx.lineTo(tipX, tipY);
+    slamOverlayCtx.stroke();
+    slamOverlayCtx.beginPath();
+    slamOverlayCtx.moveTo(tipX, tipY);
+    slamOverlayCtx.lineTo(tipX - vx * 5 + vy * 3, tipY - vy * 5 - vx * 3);
+    slamOverlayCtx.lineTo(tipX - vx * 5 - vy * 3, tipY - vy * 5 + vx * 3);
+    slamOverlayCtx.closePath();
+    slamOverlayCtx.fill();
+    slamOverlayCtx.beginPath();
+    slamOverlayCtx.arc(robot[0], robot[1], 4, 0, Math.PI * 2);
+    slamOverlayCtx.fill();
+    slamOverlayCtx.lineWidth = 1;
+    slamOverlayCtx.strokeStyle = "#ffffff";
+    slamOverlayCtx.stroke();
+  }
+
+  function renderMapping() {
+    mappingBtn.textContent = mappingOn ? "■ 停止建图并保存" : "▶ 开始建图（自动巡航）";
+    mappingBtn.className = mappingOn ? "on" : "off";
+    slamLiveBadge.style.display = mappingOn ? "block" : "none";
+  }
+
+  function resetLiveMappingView() {
+    slamHasFrame = false;
+    slamImg.style.display = "none";
+    slamPlaceholder.style.display = "grid";
+    slamPlaceholder.textContent = "SLAM 正在初始化，等待第一帧实时地图…";
+    slamHint.textContent = "黑=占据，白=空闲，灰=尚未扫描；红点=初始点，绿点/箭头=实时位置与方向";
+    slamStats.textContent = "初始化中";
+    slamMapInfo = null;
+    slamInitialPose = null;
+    slamRobotPose = null;
+    slamImageWidth = 0;
+    slamImageHeight = 0;
+    clearSlamMarkers();
+  }
+
+  function updateMappingProgress(status) {
+    var mapping = status.mapping || {};
+    var map = status.map || {};
+    var info = map.info;
+    slamMapInfo = info || null;
+    slamInitialPose = mapping.initial_pose || null;
+    slamRobotPose = mapping.current_pose || null;
+    var since = Number(mapping.since_s);
+    var age = Number(map.age_s);
+    slamLiveReady = mappingOn && info && Number.isFinite(age) &&
+      Number.isFinite(since) && age <= since + 0.75;
+
+    if (mappingOn) {
+      if (!slamHasFrame) {
+        slamPlaceholder.style.display = "grid";
+        slamPlaceholder.textContent = slamLiveReady
+          ? "正在载入第一帧实时地图…"
+          : "SLAM 正在初始化，等待第一帧实时地图…";
+      }
+      var elapsed = Number.isFinite(since) ? Math.round(since) + " s" : "启动中";
+      if (info && slamLiveReady) {
+        slamHint.textContent = "实时占据栅格：红点=初始点，绿点/箭头=车辆实时位置与方向";
+        slamStats.textContent = info.width + "×" + info.height + " · " +
+          info.resolution + " m/格 · " + elapsed;
+      } else {
+        slamHint.textContent = "正在等待 SLAM 生成第一帧地图…";
+        slamStats.textContent = elapsed;
+      }
+    } else if (slamHasFrame && info) {
+      slamHint.textContent = "最后一帧地图：黑=占据，白=空闲，灰=未知";
+      slamStats.textContent = info.width + "×" + info.height + " · " +
+        info.resolution + " m/格";
+    } else if (!slamHasFrame) {
+      slamStats.textContent = "等待开始";
+    }
+    drawSlamMarkers();
+  }
+
+  function installSlamImage(url, isObjectUrl) {
+    var probe = new Image();
+    probe.onload = function () {
+      var oldUrl = slamObjectUrl;
+      slamImg.src = url;
+      slamImg.style.display = "block";
+      slamPlaceholder.style.display = "none";
+      slamHasFrame = true;
+      slamImageWidth = probe.naturalWidth;
+      slamImageHeight = probe.naturalHeight;
+      slamObjectUrl = isObjectUrl ? url : null;
+      if (oldUrl && oldUrl !== url) { URL.revokeObjectURL(oldUrl); }
+      requestAnimationFrame(drawSlamMarkers);
+    };
+    probe.onerror = function () {
+      if (isObjectUrl) { URL.revokeObjectURL(url); }
+      if (!slamHasFrame) {
+        slamPlaceholder.style.display = "grid";
+        slamPlaceholder.textContent = "地图画面暂时不可用，正在重试…";
+      }
+    };
+    probe.src = url;
+  }
+
+  function refreshLiveMap() {
+    if (!mappingOn || !slamLiveReady || slamFetchBusy) { return; }
+    slamFetchBusy = true;
+    fetch("/api/map.png?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) { throw new Error("map not ready"); } return r.blob(); })
+      .then(function (blob) { installSlamImage(URL.createObjectURL(blob), true); })
+      .catch(function () {
+        if (!slamHasFrame) {
+          slamPlaceholder.style.display = "grid";
+          slamPlaceholder.textContent = "正在等待第一帧实时地图…";
+        }
+      })
+      .finally(function () { slamFetchBusy = false; });
+  }
+
+  mappingBtn.addEventListener("click", function () {
+    var requestedEnable = !mappingOn;
+    mappingBtn.disabled = true;
+    fetch("/api/mapping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable: requestedEnable, auto_cruise: true })
+    }).then(function (r) { return r.json(); }).then(function (resp) {
+      if (resp.accepted) {
+        mappingOn = !!resp.mapping;
+        if (mappingOn) { resetLiveMappingView(); }
+        renderMapping();
+        if (!mappingOn && resp.map_name) {
+          slamHint.textContent = "地图已保存：" + resp.message + ".pgm/.yaml";
+          // 保存接口返回时后端文件已经落盘；立即刷新两个列表，
+          // 并把新地图选中到“预览”和“自主定位”。
+          refreshSavedMaps(resp.map_name, true);
+        }
+      } else if (resp.error === "slam_toolbox_not_installed") {
+        slamHint.textContent = "未安装 slam_toolbox，请先在树莓派上安装";
+      } else if (resp.error === "map_save_failed") {
+        mappingOn = false;
+        renderMapping();
+        slamHint.textContent = "地图保存失败，请检查雷达建图数据后重试";
+        refreshSavedMaps();
+      }
+    }).catch(function () {
+      slamHint.textContent = "建图接口连接失败，正在重试状态检查…";
+    }).finally(function () { mappingBtn.disabled = false; });
+  });
+  renderMapping();
+  resetLiveMappingView();
+  slamPlaceholder.textContent = "点击“开始建图”后，这里会实时显示扫描形成的地图";
+  slamStats.textContent = "等待开始";
+  setInterval(function () {
+    refreshLiveMap();
+  }, 250);
+  window.addEventListener("resize", drawSlamMarkers);
+
+  // ---------- 已保存地图预览 ----------
+  var savedMapsSel = document.getElementById("savedMaps");
+  var localizationMapSel = document.getElementById("localizationMap");
+  function refreshSavedMaps(preferredName, previewPreferred) {
+    return fetch("/api/maps?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.json(); }).then(function (d) {
+      var cur = savedMapsSel.value;
+      var locCur = localizationMapSel.value;
+      var names = d.maps || [];
+      savedMapsSel.innerHTML = "";
+      localizationMapSel.innerHTML = "";
+      names.forEach(function (m) {
+        var opt = document.createElement("option");
+        opt.value = m; opt.textContent = m;
+        savedMapsSel.appendChild(opt);
+        var locOpt = document.createElement("option");
+        locOpt.value = m; locOpt.textContent = m;
+        localizationMapSel.appendChild(locOpt);
+      });
+      var preferredExists = preferredName && names.indexOf(preferredName) >= 0;
+      if (preferredExists) {
+        savedMapsSel.value = preferredName;
+        localizationMapSel.value = preferredName;
+      } else {
+        if (cur && names.indexOf(cur) >= 0) { savedMapsSel.value = cur; }
+        if (locCur && names.indexOf(locCur) >= 0) {
+          localizationMapSel.value = locCur;
+        }
+      }
+      if (preferredExists && previewPreferred) {
+        previewSavedMap(preferredName);
+      }
+    }).catch(function () { /* 下轮重试 */ });
+  }
+  function previewSavedMap(name) {
+    if (!name) { return; }
+    installSlamImage(
+      "/api/maps/" + encodeURIComponent(name) + ".png?t=" + Date.now(),
+      false
+    );
+    slamHint.textContent = "预览已保存地图：" + name;
+    slamStats.textContent = "已保存地图";
+  }
+  savedMapsSel.addEventListener("change", function () {
+    previewSavedMap(savedMapsSel.value);
+  });
+  refreshSavedMaps();
+
+  // ---------- 相机画面 ----------
+  var camView = document.getElementById("camView");
+  // 一个长连接持续接收最新帧，避免逐帧请求的往返延迟和等待间隔。
+  var cameraRetry = null;
+  var cameraWasOffline = false;
+  function refreshCamera() {
+    clearTimeout(cameraRetry);
+    if (document.hidden) return;
+    camView.src = "/api/camera/stream?t=" + Date.now();
+  }
+  camView.addEventListener("error", function () {
+    camView.style.visibility = "hidden";
+    clearTimeout(cameraRetry);
+    cameraRetry = setTimeout(refreshCamera, 1000);
+  });
+  camView.addEventListener("load", function () {
+    camView.style.visibility = "visible";
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      clearTimeout(cameraRetry);
+      camView.removeAttribute("src");
+    } else refreshCamera();
+  });
+  window.addEventListener("pagehide", function () {
+    clearTimeout(cameraRetry);
+    camView.removeAttribute("src");
+  });
+  refreshCamera();
+
+  // ---------- 拍照（下载当前帧到客户端本地） ----------
+  var photoBtn = document.getElementById("photoBtn");
+  var photoHint = document.getElementById("photoHint");
+  photoBtn.addEventListener("click", function () {
+    photoHint.textContent = "正在下载…";
+    var link = document.createElement("a");
+    link.href = "/api/photo/download";
+    link.download = "photo_" + new Date().toISOString().replace(/[:.]/g, "-") + ".jpg";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    photoHint.textContent = "已开始下载（浏览器保存到本地）";
+    setTimeout(function () {
+      photoHint.textContent = "点击拍照下载当前画面到本地";
+    }, 2000);
+  });
+
+  // ---------- 自动巡航 ----------
+  var autoCruiseBtn = document.getElementById("autoCruiseBtn");
+  var autoCruiseStatus = document.getElementById("autoCruiseStatus");
+  var navStart = document.getElementById("navStart");
+  var navMapContainer = document.getElementById("navMapContainer");
+  var navMap = document.getElementById("navMap");
+  var navHint = document.getElementById("navHint");
+  var autoCruiseOn = false;
+  var navMapData = null;
+  var navMapInfo = null;
+  var navInitialPoint = null;
+  var navMapName = null;
+  var robotMapPose = null;  // [x, y, yaw] map 系（Nav2/AMCL 定位，无定位时为 null）
+  var robotLocalizationConfidence = "none";
+  var localizeBtn = document.getElementById("localizeBtn");
+  var relocalizeBtn = document.getElementById("relocalizeBtn");
+  var localizationStateEl = document.getElementById("localizationState");
+  var localizationPoseEl = document.getElementById("localizationPose");
+  var localizationHintEl = document.getElementById("localizationHint");
+
+  var localizationLabels = {
+    inactive: "未启动", starting: "正在启动", waiting_for_amcl: "等待定位节点",
+    globalizing: "全图匹配中", localized: "已定位", error: "定位错误"
+  };
+
+  function renderLocalization(loc) {
+    loc = loc || {};
+    localizationStateEl.textContent = localizationLabels[loc.state] || loc.state || "未启动";
+    if (loc.confidence && loc.confidence !== "none") {
+      var names = { high: "高", medium: "中", low: "低" };
+      localizationStateEl.textContent += "（置信度" + (names[loc.confidence] || loc.confidence) + "）";
+    }
+    if (loc.map_pose) {
+      localizationPoseEl.textContent = loc.map_pose[0].toFixed(2) + " / " +
+        loc.map_pose[1].toFixed(2) + " / " + loc.map_pose[2].toFixed(2);
+      var sigma = (loc.xy_sigma_m === null || loc.xy_sigma_m === undefined)
+        ? "" : "，位置误差σ≈" + loc.xy_sigma_m.toFixed(2) + "m";
+      localizationHintEl.textContent = loc.confidence === "low"
+        ? "橙色标记是当前候选位置，匹配尚未唯一；可缓慢前后移动约0.3米帮助收敛" + sigma
+        : "绿色标记为可信雷达匹配位置" + sigma;
+    } else {
+      localizationPoseEl.textContent = "-";
+      localizationHintEl.textContent = loc.error
+        ? "定位失败：" + loc.error
+        : "正在用实时雷达扫描与整张地图匹配，请保持周围环境无遮挡";
+    }
+    if (loc.map_name && localizationMapSel.value !== loc.map_name) {
+      localizationMapSel.value = loc.map_name;
+    }
+  }
+
+  function renderAutoCruise() {
+    autoCruiseBtn.textContent = autoCruiseOn ? "■ 停止巡航" : "▶ 自动巡航";
+    autoCruiseBtn.className = autoCruiseOn ? "on" : "off";
+    autoCruiseStatus.textContent = autoCruiseOn ? "巡航中" : "未启动";
+  }
+
+  function loadNavMap() {
+    fetch("/api/auto_cruise/status").then(function (r) { return r.json(); }).then(function (d) {
+      if (d.initial && d.map_info) {
+        navStart.textContent = "(" + d.initial[0].toFixed(2) + ", " + d.initial[1].toFixed(2) + ")";
+        navInitialPoint = d.initial;
+        navMapInfo = d.map_info;
+        navMapName = d.map_name || null;
+        navMapContainer.style.display = "block";
+        loadNavMapImage();
+      } else {
+        navHint.textContent = "无法获取初始点或地图信息";
+      }
+    }).catch(function () {
+      navHint.textContent = "获取巡航状态失败";
+    });
+  }
+
+  function loadNavMapImage() {
+    if (!navMapName) { return; }
+    var img = new Image();
+    img.onload = function () {
+      navMap.width = img.width;
+      navMap.height = img.height;
+      navMapData = img;
+      drawNavMap();
+    };
+    img.src = "/api/maps/" + navMapName + ".png";
+  }
+
+  // 小车定位标记轮询（2Hz，与状态轮询同频；定位由 AMCL 提供 map 系位姿）
+  function pollRobotPose() {
+    fetch("/api/status").then(function (r) { return r.json(); }).then(function (s) {
+      var loc = s.localization || {};
+      robotMapPose = loc.map_pose || null;
+      robotLocalizationConfidence = loc.confidence || "none";
+      renderLocalization(loc);
+      if (navMapData) { drawNavMap(); }
+    }).catch(function () { robotMapPose = null; });
+  }
+  setInterval(pollRobotPose, 500);
+
+  function drawNavMap() {
+    if (!navMapData) { return; }
+    var ctx = navMap.getContext("2d");
+    ctx.drawImage(navMapData, 0, 0);
+    // 绘制初始点
+    if (navInitialPoint) {
+      var pos = worldToNavMap(navInitialPoint[0], navInitialPoint[1]);
+      if (pos) {
+        ctx.fillStyle = "#e08080";
+        ctx.beginPath();
+        ctx.arc(pos[0], pos[1], 6, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "10px sans-serif";
+        ctx.fillText("初始点", pos[0] - 15, pos[1] - 10);
+      }
+    }
+    // 绘制小车实时位置（AMCL 定位，绿色圆点 + 朝向线）
+    if (robotMapPose) {
+      var rp = worldToNavMap(robotMapPose[0], robotMapPose[1]);
+      if (rp) {
+        var yaw = robotMapPose[2];
+        // canvas y 轴翻转（worldToNavMap 内 gy 取反），朝向线 y 分量需取反
+        var hx = rp[0] + Math.cos(yaw) * 12;
+        var hy = rp[1] - Math.sin(yaw) * 12;
+        var markerColor = robotLocalizationConfidence === "low" ? "#e0a040" : "#40c080";
+        ctx.strokeStyle = markerColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(rp[0], rp[1]);
+        ctx.lineTo(hx, hy);
+        ctx.stroke();
+        ctx.fillStyle = markerColor;
+        ctx.beginPath();
+        ctx.arc(rp[0], rp[1], 5, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+  }
+
+  function worldToNavMap(x, y) {
+    if (!navMapInfo) { return null; }
+    var gx = (x - navMapInfo.origin[0]) / navMapInfo.resolution;
+    var gy = (y - navMapInfo.origin[1]) / navMapInfo.resolution;
+    return [gx, navMap.height - gy];  // 翻转 y 轴
+  }
+
+  localizeBtn.addEventListener("click", function () {
+    var name = localizationMapSel.value;
+    if (!name) { localizationHintEl.textContent = "没有可用的已保存地图"; return; }
+    localizationHintEl.textContent = "正在启动激光全局定位…";
+    fetch("/api/localization/start", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name })
+    }).then(function (r) { return r.json(); }).then(function (resp) {
+      if (!resp.accepted) { throw new Error(resp.error || "启动失败"); }
+      navMapName = name;
+      loadNavMap();
+    }).catch(function (e) { localizationHintEl.textContent = "定位启动失败：" + e.message; });
+  });
+
+  relocalizeBtn.addEventListener("click", function () {
+    localizationHintEl.textContent = "正在重新搜索整张地图…";
+    fetch("/api/localization/relocalize", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}"
+    }).then(function (r) { return r.json(); }).then(function (resp) {
+      if (!resp.accepted) { throw new Error(resp.error || "请求失败"); }
+    }).catch(function (e) { localizationHintEl.textContent = "重新定位失败：" + e.message; });
+  });
+
+  autoCruiseBtn.addEventListener("click", function () {
+    if (!autoCruiseOn) {
+      fetch("/api/auto_cruise/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      }).then(function (r) { return r.json(); }).then(function (resp) {
+        if (resp.accepted) {
+          autoCruiseOn = true;
+          renderAutoCruise();
+          navHint.textContent = "自动巡航已开始";
+        } else {
+          navHint.textContent = "自动巡航启动失败：" + (resp.error || "未知错误");
+        }
+      }).catch(function () {
+        navHint.textContent = "自动巡航请求失败";
+      });
+    } else {
+      fetch("/api/auto_cruise/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      }).then(function (r) { return r.json(); }).then(function (resp) {
+        if (resp.accepted) {
+          autoCruiseOn = false;
+          renderAutoCruise();
+          navHint.textContent = "自动巡航已停止";
+        }
+      }).catch(function () { /* 状态轮询会纠正显示 */ });
+    }
+  });
+
+  loadNavMap();
+  renderAutoCruise();
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  const stick = document.getElementById('a2Joystick');
+  const hint = document.getElementById('a2Hint');
+  const state = document.getElementById('a2State');
+  const stopButton = document.getElementById('a2Stop');
+  let held = null, timer = null, pointer = null, key = null;
+  let position = 0, pointerY = 0;
+  let live = false, blocked = false, busy = false, closed = false;
+  let queue = Promise.resolve(), statusTimer = null;
+  const idleHint = '上下拖动 · 松手停转，滑块保留位置';
+
+  async function post(action, token) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1500);
+    try {
+      const response = await fetch('/api/a2/gimbal', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action, press_id:token, speed:20}),
+        signal:controller.signal, keepalive:action === 'stop'
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw Error(result.error || '云台未确认指令');
+    } finally { clearTimeout(timeout); }
+  }
+  function visual(value = position) {
+    position = Math.max(-1, Math.min(1, value));
+    const travel = Math.max(1, (stick.getBoundingClientRect().height - 64) / 2);
+    stick.style.setProperty('--stick-y', `${-position * travel}px`);
+    stick.style.setProperty('--travel-size', `${Math.abs(position * travel)}px`);
+    stick.style.setProperty('--travel-start', `calc(50% - ${Math.max(0, position * travel)}px)`);
+    stick.setAttribute('aria-valuenow', String(Math.round(position * 100)));
+    const action = held ? (held.dir === 'up' ? '向上转动' : '向下转动') : '已停止';
+    stick.setAttribute('aria-valuetext', `${action}，滑块位置 ${Math.round(position * 100)}%`);
+    stick.dataset.direction = held?.dir || 'stop';
+  }
+  function enqueueStop(token) {
+    queue = queue.then(async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await post('stop', token);
+          blocked = false;
+          stick.setAttribute('aria-disabled', String(!live));
+          if (!held) hint.textContent = '已停止 · ' + idleHint;
+          return;
+        } catch (_) {
+          blocked = true;
+          stick.setAttribute('aria-disabled', 'true');
+          hint.textContent = attempt < 2 ? '停止未确认，正在重试…' : '停止未确认，请检查连接后点击停止云台';
+        }
+      }
+      release();
+    });
+  }
+  function releaseHold() {
+    clearInterval(timer); timer = null;
+    if (!held) return;
+    const current = held; held = null;
+    hint.textContent = '正在停止云台…';
+    enqueueStop(current.id);
+  }
+  function release() {
+    const previousPointer = pointer;
+    pointer = null; key = null;
+    releaseHold(); visual();
+    if (previousPointer !== null && stick.hasPointerCapture(previousPointer)) stick.releasePointerCapture(previousPointer);
+  }
+  function tick() {
+    if (!held || busy || blocked || closed) return;
+    const current = held; busy = true;
+    queue = queue.then(async () => {
+      if (held !== current || !live || blocked || closed) return;
+      try {
+        await post(current.dir, current.id);
+        if (held === current) hint.textContent = (current.dir === 'up' ? '向上转动' : '向下转动') + ' · 松手即停';
+      } catch (error) {
+        blocked = true; stick.setAttribute('aria-disabled', 'true'); release();
+        hint.textContent = (error.name === 'AbortError' ? '控制请求超时' : '转动未确认') + '，正在发送停止…';
+      }
+    }).finally(() => { busy = false; });
+  }
+  function move(direction, value) {
+    if (!live || blocked || closed) return;
+    visual(value);
+    if (held?.dir === direction) return;
+    releaseHold();
+    const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2,'0')).join('');
+    held = {id, dir:direction};
+    visual();
+    tick(); timer = setInterval(tick, 150);
+  }
+  function movePointer(event) {
+    const delta = pointerY - event.clientY;
+    if (!Number.isFinite(delta) || Math.abs(delta) < 2) return;
+    pointerY = event.clientY;
+    const rect = stick.getBoundingClientRect();
+    move(delta > 0 ? 'up' : 'down', position + delta / Math.max(1, (rect.height - 64) / 2));
+  }
+  stick.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || pointer !== null || key !== null || !live || blocked) return;
+    event.preventDefault(); stick.focus(); pointer = event.pointerId;
+    pointerY = event.clientY;
+    stick.setPointerCapture(pointer);
+  });
+  stick.addEventListener('pointermove', event => {
+    if (event.pointerId === pointer) { event.preventDefault(); movePointer(event); }
+  });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(name => stick.addEventListener(name, event => {
+    if (event.pointerId === pointer) release();
+  }));
+  stick.addEventListener('keydown', event => {
+    // Do not let rover WASD/arrow shortcuts receive presses while the camera stick owns focus.
+    event.stopPropagation();
+    if (!['ArrowUp','ArrowDown','Escape',' ','Enter'].includes(event.key)) return;
+    event.preventDefault();
+    if (['Escape',' ','Enter'].includes(event.key)) { release(); return; }
+    if (pointer !== null || !live || blocked) return;
+    key = event.key;
+    move(key === 'ArrowUp' ? 'up' : 'down', position + (key === 'ArrowUp' ? .12 : -.12));
+  });
+  stick.addEventListener('keyup', event => {
+    if (!['ArrowUp','ArrowDown'].includes(event.key)) return;
+    event.preventDefault(); event.stopPropagation();
+    if (event.key === key) release();
+  });
+  stick.addEventListener('blur', release);
+  stick.addEventListener('contextmenu', event => event.preventDefault());
+  stopButton.onclick = () => { release(); enqueueStop(''); };
+  async function status() {
+    try {
+      const response = await fetch('/api/a2/status', {signal:AbortSignal.timeout(2000)});
+      if (!response.ok) throw Error('状态读取失败');
+      const data = await response.json();
+      if (typeof data?.connected !== 'boolean') throw Error('状态数据不完整');
+      if (closed) return;
+      live = data.connected;
+      state.textContent = live ? '云台已连接 · 上下俯仰' : data.error || '云台未连接';
+    } catch (_) {
+      if (closed) return;
+      // A slow status GET must not cancel a healthy, continuously renewed drag.
+      // Command failures and the server's renewable lease still stop motion.
+      if (held) state.textContent = '状态读取延迟 · 正在续发控制指令';
+      else { live = false; state.textContent = '云台连接暂不可用'; }
+    }
+    stick.setAttribute('aria-disabled', String(!live || blocked));
+    if (!live) release();
+    if (!closed) statusTimer = setTimeout(status, 1000);
+  }
+  window.addEventListener('blur', release);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
+  window.addEventListener('pagehide', () => {
+    closed = true; clearTimeout(statusTimer);
+    if (held) navigator.sendBeacon('/api/a2/gimbal', new Blob([
+      JSON.stringify({action:'stop', press_id:held.id, speed:20})
+    ], {type:'application/json'}));
+    release();
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+  status();
+})();
+</script>
+
+<script>
+(function(){
+  const byId=id=>document.getElementById(id);
+  let pending=false, state={available:false};
+  const simulationMode=()=>byId('lsMotor').value==='simulation';
+  function renderMode(){
+    const simulation=simulationMode(), clamped=Boolean(state.simulation_clamped);
+    byId('lsDirectionField').classList.toggle('ls-hidden',simulation);
+    byId('lsDistanceField').classList.toggle('ls-hidden',simulation);
+    byId('lsSimulationPanel').classList.toggle('ls-hidden',!simulation);
+    byId('lsMove').textContent=simulation?(clamped?'开始释放':'开始归中'):'开始运动';
+    byId('lsSimulationTitle').textContent=clamped?'释放参数（固定）':'归中参数（固定）';
+    byId('lsSimulationSequence').textContent=clamped
+      ?'释放顺序：2 号向外运行 20 mm，完成后 1 号再向外运行 60 mm。'
+      :'归中顺序：1 号向内运行 60 mm，完成后 2 号再向内运行 20 mm。';
+  }
+  function render(s){
+    state=s;
+    byId('lsState').textContent=(s.simulated?'[模拟] ':'')+(s.message||'等待状态');
+    byId('lsOutput').textContent=s.output||'';
+    byId('lsMove').disabled=pending||!s.available||s.busy;
+    byId('lsReset').disabled=pending||!s.available||s.busy;
+    ['lsMotor','lsDirection','lsRpm','lsDistance','lsRamp'].forEach(id=>byId(id).disabled=pending||s.busy);
+    byId('lsPosition').textContent='相对脉冲估算：'+(s.pos_mm?s.pos_mm.map((p,i)=>(i+1)+'号 '+p.toFixed(3)+' mm').join(' / '):'—')+'；非实际位置，无报警反馈';
+    renderMode();
+  }
+  async function poll(){
+    try{const r=await fetch('/api/leadscrew/manual/status');if(!r.ok)throw Error('状态读取失败');render(await r.json());}
+    catch(e){render({...state,available:false,message:'丝杆状态连接中断'});}
+    setTimeout(poll,700);
+  }
+  async function send(action){
+    if(pending&&action!=='stop')return;
+    const simulation=simulationMode();
+    const data={motor:simulation?0:Number(byId('lsMotor').value),direction:Number(byId('lsDirection').value),rpm:Number(byId('lsRpm').value),distance_mm:Number(byId('lsDistance').value),ramp_seconds:Number(byId('lsRamp').value)};
+    if(action==='move'&&(![data.rpm,data.ramp_seconds].every(Number.isFinite)||data.rpm<.1875||data.rpm>1000||data.ramp_seconds<.05||data.ramp_seconds>5||(!simulation&&(!Number.isFinite(data.distance_mm)||data.distance_mm<=0||data.distance_mm>63.5)))){byId('lsError').textContent='请检查转速、行程和加速时间范围';return;}
+    if(action==='move'&&simulation)action='simulation_toggle';
+    pending=true;render(state);byId('lsError').textContent='';
+    try{const r=await fetch('/api/leadscrew/manual/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const s=await r.json();if(!r.ok||!s.accepted)throw Error(s.error||s.message||'指令未接受');}
+    catch(e){byId('lsError').textContent=e.message;}
+    finally{pending=false;render(state);}
+  }
+  byId('lsMotor').onchange=renderMode;
+  byId('lsMove').onclick=()=>send('move');byId('lsStop').onclick=()=>send('stop');byId('lsReset').onclick=()=>send('reset');
+  // Motor-panel keyboard use must not also command the vehicle chassis.
+  ['keydown','keyup'].forEach(name=>byId('leadscrewPanel').addEventListener(name,e=>e.stopPropagation()));
+  poll();
+})();
+</script>
+
+</body>
+</html>

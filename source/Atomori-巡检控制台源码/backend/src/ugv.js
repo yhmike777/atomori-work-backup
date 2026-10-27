@@ -17,10 +17,11 @@ export function normalizeUgvStatus(input, elapsedS = 0) {
   const ages = Object.fromEntries(Object.entries(object(raw.topic_ages_s)).map(([key, value]) => [key, age(value, elapsedS)]));
   const environmentAge = age(environment.age_s, elapsedS);
   const environmentAvailable = environment.available === true && environment.stale === false;
+  // Match the car gateway's 15 s DHT11 last-success window; failed reads do not renew age.
   const metrics = {
     speed: metric(odom.speed_mps, ages.odom ?? null, 'm/s', '/odom.twist · 速度模长', 2, { min: 0 }),
-    temperature: metric(environment.temperature_c, environmentAge, '°C', 'environment.temperature_c', 10, { available: environmentAvailable, min: -40, max: 80 }),
-    humidity: metric(environment.humidity_percent, environmentAge, '%RH', 'environment.humidity_percent', 10, { available: environmentAvailable, min: 0, max: 100 }),
+    temperature: metric(environment.temperature_c, environmentAge, '°C', 'environment.temperature_c', 15, { available: environmentAvailable, min: -40, max: 80 }),
+    humidity: metric(environment.humidity_percent, environmentAge, '%RH', 'environment.humidity_percent', 15, { available: environmentAvailable, min: 0, max: 100 }),
     ultrasonic: metric(object(raw.ultrasonic).range, age(object(raw.ultrasonic).age_s, elapsedS), 'm', '/ultrasonic/range', 2, { min: 0 })
   };
   const digital = Object.fromEntries(['sound', 'flame', 'mq2'].map(key => {

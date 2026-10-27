@@ -7,9 +7,9 @@
       "pointId": "B-08",
       "source": "A8 Mini",
       "note": "法兰外观待复核",
-      "status": "pending",
+      "status": "acknowledged",
       "createdAt": "2026-10-01T14:32:18+08:00",
-      "updatedAt": "2026-10-01T14:32:18+08:00"
+      "updatedAt": "2026-10-26T05:48:44.609Z"
     },
     {
       "id": "F-002",
@@ -21,10 +21,103 @@
       "status": "pending",
       "createdAt": "2026-10-01T14:32:18+08:00",
       "updatedAt": "2026-10-01T14:32:18+08:00"
+    },
+    {
+      "id": "e51bc920-3741-4d0b-86ba-20aef85a4fe2",
+      "missionId": "P-20261001-03",
+      "assetId": "AS-B08-001",
+      "pointId": "B-08",
+      "source": "ugv_upstream_unverified_operator",
+      "note": "1",
+      "status": "reviewed",
+      "createdAt": "2026-10-25T12:49:29.764Z",
+      "updatedAt": "2026-10-25T13:00:40.087Z",
+      "requestId": "d3749884-a522-4417-9319-d0194e6fd39a"
+    },
+    {
+      "id": "461a39e1-d42f-4739-931c-81ccc57c6e52",
+      "missionId": "P-20261001-03",
+      "assetId": "AS-B08-001",
+      "pointId": "B-08",
+      "source": "dock_demo_operator",
+      "note": "1",
+      "status": "pending",
+      "createdAt": "2026-10-25T13:11:49.940Z",
+      "updatedAt": "2026-10-25T13:11:49.940Z",
+      "requestId": "632f7b5e-41d1-42e3-9d0a-52f4f66de99c"
     }
   ],
-  "rechecks": [],
+  "rechecks": [
+    {
+      "id": "0bc9566c-beda-4d3e-99cf-4a7bb9409c09",
+      "missionId": "P-20261001-03",
+      "assetId": "AS-B08-001",
+      "pointId": "B-08",
+      "status": "queued",
+      "createdAt": "2026-10-25T13:11:56.509Z"
+    }
+  ],
   "events": [
+    {
+      "id": "8527d6d8-649d-47ab-9897-5d409600f958",
+      "missionId": "P-20261001-03",
+      "type": "operator",
+      "title": "告警已知悉",
+      "detail": "B-08",
+      "occurredAt": "2026-10-26T05:48:44.609Z",
+      "findingId": "F-001",
+      "assetId": "AS-B08-001"
+    },
+    {
+      "id": "cab5f4d7-14ed-47ae-a0f8-672b1bedacca",
+      "missionId": "P-20261001-03",
+      "type": "operator",
+      "title": "复查队列已加入",
+      "detail": "B-08 · 仅保存业务记录，不下发机器人任务",
+      "occurredAt": "2026-10-25T13:11:56.509Z",
+      "recheckId": "0bc9566c-beda-4d3e-99cf-4a7bb9409c09",
+      "assetId": "AS-B08-001"
+    },
+    {
+      "id": "bf3f895a-ed5f-4cad-98b6-09f1539a8744",
+      "missionId": "P-20261001-03",
+      "type": "operator",
+      "title": "巡检疑点已记录",
+      "detail": "B-08",
+      "occurredAt": "2026-10-25T13:11:49.940Z",
+      "findingId": "461a39e1-d42f-4739-931c-81ccc57c6e52",
+      "assetId": "AS-B08-001"
+    },
+    {
+      "id": "18c5aaa0-3d5b-4baf-9e1c-b1280be4ce0c",
+      "missionId": "P-20261001-03",
+      "type": "operator",
+      "title": "人工复核已完成",
+      "detail": "B-08",
+      "occurredAt": "2026-10-25T13:00:40.087Z",
+      "findingId": "e51bc920-3741-4d0b-86ba-20aef85a4fe2",
+      "assetId": "AS-B08-001"
+    },
+    {
+      "id": "d53c15f6-2c90-4efc-9e2e-70c58afbb175",
+      "missionId": "P-20261001-03",
+      "type": "operator",
+      "title": "告警已知悉",
+      "detail": "B-08",
+      "occurredAt": "2026-10-25T13:00:30.260Z",
+      "findingId": "e51bc920-3741-4d0b-86ba-20aef85a4fe2",
+      "assetId": "AS-B08-001"
+    },
+    {
+      "id": "3668f407-f5be-4dc0-b81d-e91eb36d51a8",
+      "missionId": "P-20261001-03",
+      "type": "operator",
+      "title": "巡检疑点已记录",
+      "detail": "B-08",
+      "occurredAt": "2026-10-25T12:49:29.764Z",
+      "findingId": "e51bc920-3741-4d0b-86ba-20aef85a4fe2",
+      "assetId": "AS-B08-001"
+    },
     {
       "id": "E-001",
       "missionId": "P-20261001-03",

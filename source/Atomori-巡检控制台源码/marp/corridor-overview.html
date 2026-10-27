@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>管廊全域态势 · Atomori</title>
+  <link rel="stylesheet" href="corridor-overview.css?rev=20261026a">
+</head>
+<body>
+  <div class="corridor-shell">
+    <header class="page-header">
+      <a class="back-link" href="巡检控制台.html">← 返回巡检控制台</a>
+      <span class="brand">Atomori <small>OPERATIONS</small></span>
+    </header>
+    <main>
+      <div class="page-heading">
+        <div><p class="eyebrow">CORRIDOR OVERVIEW</p><h1>管廊全域态势</h1></div>
+        <span class="preview-badge"><i></i>示意预览 · 实机场景待接入</span>
+      </div>
+      <p class="page-description">保留四区空间示意与设施点位，供后续实机场景接入使用。当前未与车端地图配准。</p>
+      <section class="overview-panel" aria-label="管廊空间示意图">
+        <div class="map-toolbar">
+          <div><h2 id="map-view-label">2.5D 空间示意</h2><span>点击点位查看档案</span></div>
+          <div class="view-controls">
+            <button id="toggle-map" type="button" aria-pressed="false">切换二维</button>
+            <button id="toggle-route" type="button" aria-pressed="true">隐藏路径</button>
+          </div>
+        </div>
+        <div class="map-area" id="corridor-map">
+          <div class="map-canvas">
+            <img class="spatial-twin" src="../assets/generated/console/tunnel-overview.png" alt="地下综合管廊空间示意，含入口保障、综合巡检、电力设备、给排水四区">
+            <svg class="tunnel-map" viewBox="0 0 1000 500" role="img" aria-label="四区管廊二维线路示意">
+              <defs><pattern id="map-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#b9d7df" opacity="0.25"/></pattern></defs>
+              <rect width="1000" height="500" fill="url(#map-grid)"/>
+              <g id="network-lines" fill="none" stroke-linejoin="round" stroke-linecap="round"></g>
+            </svg>
+            <svg class="route-overlay" viewBox="0 0 1000 500" aria-hidden="true"><path id="preview-route"/></svg>
+            <div class="zone-label zone-a"><b>A</b><span>入口保障区</span></div>
+            <div class="zone-label zone-b"><b>B</b><span>综合巡检区</span></div>
+            <div class="zone-label zone-c"><b>C</b><span>电力设备区</span></div>
+            <div class="zone-label zone-d"><b>D</b><span>给排水区</span></div>
+            <div id="point-pins" class="point-pins" aria-label="设施点位"></div>
+          </div>
+          <div class="map-caption"><span>路径与点位仅为示意</span><span>尚无实时设施测量数据</span></div>
+        </div>
+        <nav class="point-list" id="point-list" aria-label="选择设施点位"></nav>
+      </section>
+      <section class="point-detail" aria-labelledby="point-title">
+        <div class="detail-heading"><div><p class="eyebrow">FACILITY PREVIEW</p><h2 id="point-title">点位档案</h2></div><button id="reload-records" type="button">刷新本机记录</button></div>
+        <div class="detail-grid">
+          <dl class="point-fields"><div><dt>所属区域</dt><dd id="point-zone">—</dd></div><div><dt>目录状态</dt><dd>示意点位 · 待现场核验</dd></div><div><dt>设施测量</dt><dd>未接入</dd></div><div><dt>后端设施编号</dt><dd id="point-asset">加载中…</dd></div></dl>
+          <div class="record-panel"><h3>本机疑点记录</h3><p id="record-status" role="status" aria-live="polite">正在读取本机记录…</p><ul id="point-records"></ul></div>
+        </div>
+        <p class="detail-note">图像与点位目录为设计示意。本机业务记录不代表设备实测结果；记录处理请返回巡检控制台。</p>
+      </section>
+      <noscript><p class="script-notice">请启用 JavaScript 以切换二维视图、显示路径和查询点位记录。</p></noscript>
+    </main>
+    <footer>空地协同巡检平台 <span>管廊场景接入后将更新本页</span></footer>
+  </div>
+  <script src="api.js?rev=20261008a"></script>
+  <script src="corridor-overview.js?rev=20261026a"></script>
+</body>
+</html>

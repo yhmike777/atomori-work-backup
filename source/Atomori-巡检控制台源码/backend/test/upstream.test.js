@@ -22,6 +22,7 @@ test('车端与机载只读接口可映射和代理，控制保持关闭', async
     if (req.url === '/api/nav/status') return res.end(JSON.stringify({ active: false, goal: [0, 0], path: [], has_map: true }));
     if (req.url === '/api/maps') return res.end(JSON.stringify({ maps: ['map_20260924_224659'] }));
     if (req.url === '/api/camera.jpg') { res.setHeader('content-type', 'image/jpeg'); return res.end(Buffer.from([0xff, 0xd8, 0xff, 0xd9])); }
+    if (req.url === '/api/camera/stream') { res.setHeader('content-type', 'multipart/x-mixed-replace; boundary=frame'); return res.end('--frame\r\nContent-Type: image/jpeg\r\n\r\n'); }
     if (req.url === '/api/map.png' || req.url === '/api/maps/map_20260924_224659.png') { res.setHeader('content-type', 'image/png'); return res.end(Buffer.from([137, 80, 78, 71])); }
     res.writeHead(503); res.end();
   });
@@ -56,6 +57,14 @@ test('车端与机载只读接口可映射和代理，控制保持关闭', async
     assert.equal(uav.flight.source, 'flight-status-http');
     assert.equal(uav.flight.estimatedAltitudeM, 1.2);
     assert.equal(uav.vision.tagId, 1);
+    const flightOnly = (await fetch(`${app.url}/api/v1/devices/UAV-01/telemetry?source=flight`).then(r => r.json())).data;
+    assert.equal(flightOnly.flight.connected, true);
+    assert.equal(Object.hasOwn(flightOnly, 'vision'), false);
+    const visionOnly = (await fetch(`${app.url}/api/v1/devices/UAV-01/telemetry?source=vision`).then(r => r.json())).data;
+    assert.equal(visionOnly.vision.tagId, 1);
+    assert.equal(Object.hasOwn(visionOnly, 'flight'), false);
+    assert.equal((await fetch(`${app.url}/api/v1/devices/UAV-01/telemetry?source=other`)).status, 400);
+    assert.equal((await fetch(`${app.url}/api/v1/devices/UGV-01/telemetry?source=flight`)).status, 400);
     const scan = (await fetch(`${app.url}/api/v1/devices/UGV-01/scan`).then(r => r.json())).data;
     assert.deepEqual(scan.points, [[0, 1]]);
     const image = await fetch(`${app.url}/api/v1/devices/UGV-01/cameras/front.jpg`);
@@ -71,6 +80,11 @@ test('车端与机载只读接口可映射和代理，控制保持关闭', async
     const stream = await fetch(`${app.url}/api/v1/devices/UAV-01/cameras/ov9281.mjpg`);
     assert.match(stream.headers.get('content-type'), /multipart\/x-mixed-replace/);
     await stream.arrayBuffer();
+    const groundStream = await fetch(`${app.url}/api/v1/devices/UGV-01/cameras/front.mjpg`);
+    assert.match(groundStream.headers.get('content-type'), /multipart\/x-mixed-replace/);
+    assert.match(await groundStream.text(), /--frame/);
+    const groundSources = await integrations.stream('UGV-01');
+    assert.equal(groundSources.streams[0].url, '/api/v1/devices/UGV-01/cameras/front.mjpg');
     const command = await fetch(`${app.url}/api/v1/commands`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
     assert.equal(command.status, 503);
   } finally {

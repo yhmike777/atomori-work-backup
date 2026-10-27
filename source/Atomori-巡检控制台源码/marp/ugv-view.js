@@ -14,16 +14,62 @@ window.AtomoriUgvView = (() => {
     const item = data.metrics?.[key];
     return item?.valid === true && fresh(item.ageS, elapsed, item.maxAgeS) ? item.value : null;
   };
+  // Display continuity only: retained readings never drive motion or online state.
+  function createMetricDisplay() {
+    const samples = new Map();
+    let uptime = null, receivedAt = null;
+    return (data, key, elapsed, nowMs) => {
+      if (!snapshotFresh(data, elapsed)) {
+        samples.clear();
+        return { value: null, retained: false, ageS: null };
+      }
+      if (data.receivedAt !== receivedAt) {
+        const nextUptime = data.gateway?.uptime_s;
+        if (Number.isFinite(nextUptime) && Number.isFinite(uptime) && nextUptime < uptime) samples.clear();
+        uptime = nextUptime;
+        receivedAt = data.receivedAt;
+      }
+      const item = data.metrics?.[key];
+      const value = metric(data, key, elapsed);
+      if (Number.isFinite(value)) {
+        const ageS = item.ageS + elapsed;
+        samples.set(key, { value, sampledAt: nowMs - ageS * 1000 });
+        return { value, ageS, retained: false };
+      }
+      const previous = samples.get(key);
+      const ageS = previous ? (nowMs - previous.sampledAt) / 1000 : null;
+      const limit = key === 'speed' ? 5 : 60;
+      if (ageS !== null && ageS >= 0 && ageS <= limit) return { value: previous.value, ageS, retained: true };
+      samples.delete(key);
+      return { value: null, retained: false, ageS };
+    };
+  }
   const soundState = (data, elapsed) => {
     const sensor = data.environment?.digital?.sound;
     const available = snapshotFresh(data, elapsed) && sensor?.available === true && fresh(sensor.ageS, elapsed);
     const abnormal = available && sensor.valid === true && sensor.triggered === true;
     const defaulted = available && sensor.valid !== true;
-    return { text: available ? abnormal ? '异常' : '正常' : '—',
-      color: available ? abnormal ? 'var(--red)' : 'var(--green)' : 'var(--muted)',
+    return { text: available ? abnormal ? '异常' : defaulted ? '待判定' : '正常' : '—',
+      color: available ? abnormal ? 'var(--red)' : defaulted ? 'var(--amber)' : 'var(--green)' : 'var(--muted)',
       title: !available ? '声音传感器未连接或数据过期'
-        : defaulted ? '默认正常；声音传感器在线，尚未配置触发判定，未上报分贝值'
+        : defaulted ? '声音传感器在线，但尚未配置触发判定；没有有效报警结论，未上报分贝值'
         : `声音传感器${abnormal ? '已触发' : '未触发'}；数字触发状态，不代表分贝测量` };
+  };
+  const cameraState = (data, cameraId, elapsed) => {
+    const key = { front: 'camera', rear: 'cameraRear', top: 'cameraTop' }[cameraId];
+    const camera = key ? data[key] : null;
+    const ageS = Number.isFinite(camera?.age_s) && camera.age_s >= 0 ? camera.age_s + elapsed : null;
+    const valid = snapshotFresh(data, elapsed) && camera?.ready === true && fresh(camera.age_s, elapsed, 3);
+    const reason = !snapshotFresh(data, elapsed) ? '车辆状态未连接或过期'
+      : camera?.ready !== true ? '相机未上报有效帧'
+      : ageS === null ? '相机采样年龄未知' : ageS > 3 ? '相机帧已过期' : '实时相机';
+    return { valid, ageS, maxAgeS: 3, reason };
+  };
+  const mapState = (data, elapsed) => {
+    const ageS = Number.isFinite(data.map?.age_s) && data.map.age_s >= 0 ? data.map.age_s + elapsed : null;
+    const valid = snapshotFresh(data, elapsed) && fresh(data.map?.age_s, elapsed, 6);
+    return { valid, ageS, maxAgeS: 6, reason: !snapshotFresh(data, elapsed) ? '车辆状态未连接或过期'
+      : ageS === null ? '当前地图采样年龄未知' : ageS > 6 ? '当前地图已过期' : '当前栅格地图' };
   };
   const section = (details, name, elapsed) => {
     const item = details?.sections?.[name];
@@ -95,7 +141,7 @@ window.AtomoriUgvView = (() => {
       const valid = live && sensor?.valid === true && fresh(sensor.ageS, elapsed);
       return [['声音 GPIO（非分贝）', '火焰', 'MQ2 气体'][index], valid ? flag(sensor.triggered, '触发', '未触发') : '—', sensor?.gpio,
         valid ? `${sensor.level ?? '—'} / ${sensor.rawLevel ?? '—'}` : '—', sensor?.activeLevel, valid ? sensor.changes : null, ageText(sensor?.ageS, elapsed)];
-    })) + '<p class="dialog-muted">声音状态按默认值与数字触发信号显示，尚未接入分贝测量。</p>';
+      })) + '<p class="dialog-muted">声音状态只采用有效数字触发信号；判定未配置时显示待判定，尚未接入分贝测量。</p>';
     const location = rows([
       ['里程计位姿（odom）', pose(odomFresh ? data.odom?.pose : null)], ['里程计年龄', ageText(data.odom?.ageS, elapsed)],
       ['地图定位状态（快照）', live ? label(localization.state, locationLabels) : '—'], ['定位后端 / 地图', live ? `${localization.backend || '—'} / ${localization.map_name || '—'}` : '—'],
@@ -166,5 +212,5 @@ window.AtomoriUgvView = (() => {
     if (scroller) scroller.scrollTop = scrollTop;
   }
 
-  return { renderDetails, mechanismState, section, snapshotFresh, soundState };
+  return { renderDetails, mechanismState, section, snapshotFresh, soundState, cameraState, mapState, createMetricDisplay };
 })();

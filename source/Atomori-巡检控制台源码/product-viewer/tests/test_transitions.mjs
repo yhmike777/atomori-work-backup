@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {GestureTransitions} from '../gesture/gesture-gate.js';
+const t=new GestureTransitions();
+assert.equal(t.update(1,0,1),null,'first open palm must not expand');
+for(let n=1;n<=10;n++)assert.equal(t.update(1,n*100,1),null,'holding is not a transition');
+assert.equal(t.update(0,1100,1),0,'palm to fist restores');
+assert.equal(t.update(0,1200,1),null,'holding fist repeats no commands');
+assert.equal(t.update(1,1300,1),1,'fist to palm expands');
+assert.equal(t.update(1,1400,1),null);
+assert.equal(t.update(null,1500,1),null,'brief ambiguous pose retains previous state');
+assert.equal(t.update(0,1700,1),0);
+t.reset();assert.equal(t.update(0,0,1),null,'first fist establishes baseline');assert.equal(t.update(1,300,1),1);
+t.reset();t.update(0,0,1);t.update(null,700,0);assert.equal(t.update(1,800,1),null,'re-entry after loss establishes new baseline');
+t.reset();t.update(0,0,1);t.update(null,100,2);assert.equal(t.update(1,200,1),null,'two hands clear baseline');
+t.reset();t.update(0,0,1);for(let n=1;n<=16;n++)t.update(null,n*100,1);assert.equal(t.update(1,1700,1),null,'long ambiguous gesture clears baseline');
+console.log('PASS: initial pose ignored, bidirectional edges, held pose, brief ambiguity, loss, two hands and long ambiguity.');

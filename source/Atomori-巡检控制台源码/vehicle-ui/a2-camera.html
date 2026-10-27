@@ -1,0 +1,21 @@
+    <div class="card" id="a2Card">
+      <div class="a2-heading"><h2>相机画面</h2><span>A2 mini · 实时预览</span></div>
+      <div class="a2-layout">
+        <div class="a2-preview">
+          <div class="a2-video"><img id="camView" class="media" alt="A2 mini 相机实时画面"></div>
+          <div class="a2-video-footer"><span class="cam-label">480 × 270 · 仅显示，不参与避障</span><button id="photoBtn" title="保存当前帧">◉ 拍照</button></div>
+          <div class="cam-label" id="photoHint">点击拍照下载当前画面到本地</div>
+        </div>
+        <div class="a2-controls">
+          <div class="a2-control-title">云台俯仰</div>
+          <div class="a2-stick-wrap"><span aria-hidden="true">↑ 向上</span>
+            <div id="a2Joystick" role="slider" tabindex="0" aria-label="云台俯仰摇杆" aria-orientation="vertical" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="停止" aria-disabled="true" aria-describedby="a2Hint" data-direction="stop">
+              <i class="a2-travel" aria-hidden="true"></i><i class="a2-center" aria-hidden="true"></i><span class="a2-thumb" aria-hidden="true"><i></i><i></i><i></i></span>
+            </div><span aria-hidden="true">↓ 向下</span>
+          </div>
+          <button id="a2Stop">■ 停止云台</button>
+          <div class="cam-label" id="a2State" role="status">正在连接云台…</div>
+          <div class="cam-label" id="a2Hint" role="status">上下拖动 · 松手停转，滑块保留位置</div>
+        </div>
+      </div>
+    </div>

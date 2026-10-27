@@ -13,14 +13,14 @@ const sample = (change = {}, elapsed = 0) => normalizeUgvStatus({ environment: {
   mq2: { available: true, stale: false, age_s: 0.1, triggered: true }
 } } }, elapsed);
 
-test('声音在线时按用户要求默认正常，缺失判定仍保留 null，明确触发才显示异常', () => {
+test('声音在线但缺失触发判定显示待判定，不能把未知状态当作正常', () => {
   for (const level of [0, 1]) {
     const data = sample({ level });
     assert.equal(data.environment.digital.sound.available, true);
     assert.equal(data.environment.digital.sound.valid, false);
     assert.equal(data.environment.digital.sound.triggered, null);
-    assert.equal(view.soundState(data, 0).text, '正常');
-    assert.match(view.soundState(data, 0).title, /默认正常/);
+    assert.equal(view.soundState(data, 0).text, '待判定');
+    assert.match(view.soundState(data, 0).title, /尚未配置触发判定/);
   }
   const normal = view.soundState(sample({ triggered: false }), 0);
   assert.equal(normal.text, '正常');
@@ -42,15 +42,15 @@ test('声音断连、缺失、过期和页面缓存失效不回退正常，其�
   assert.equal(view.soundState(sample({}, 2.1), 0).text, '—');
   assert.equal(view.soundState(sample(), 2).text, '—');
   assert.equal(view.soundState(sample({ triggered: true }), 2).text, '—');
-  assert.equal(view.soundState(sample({ age_s: 0 }), 2).text, '正常');
+  assert.equal(view.soundState(sample({ age_s: 0 }), 2).text, '待判定');
 });
 
-test('车辆详情采用与主面板一致的声音状态并保留默认说明', () => {
+test('车辆详情采用与主面板一致的声音状态并保留缺失判定说明', () => {
   for (const change of [{}, { triggered: true }, { available: false }]) {
     const data = sample(change);
     const container = { innerHTML: '', querySelectorAll: () => [], closest: () => null };
     view.renderDetails(container, data, {}, 0, 0);
     assert.ok(container.innerHTML.includes(`<span>声音状态</span><b>${view.soundState(data, 0).text}</b>`));
-    if (!Object.keys(change).length) assert.match(container.innerHTML, /默认正常/);
+    if (!Object.keys(change).length) assert.match(container.innerHTML, /尚未配置触发判定/);
   }
 });

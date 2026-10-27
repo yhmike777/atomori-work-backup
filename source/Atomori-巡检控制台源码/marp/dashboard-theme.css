@@ -1,0 +1,216 @@
+/* Reference dashboard: dark steel surfaces, teal accents and a 1:2:1 workspace. */
+body.dashboard-page {
+ --bg:#101d25; --surface:#172832; --raised:#20343f; --line:#3b5260;
+ --text:#f5f8fc; --muted:#c0ced8; --blue:#35dfc6; --green:#42e39d; --amber:#ffa64e; --red:#ff7272;
+ background:var(--bg); color:var(--text); font-size:14px;
+}
+.dashboard-page * { box-sizing:border-box; }
+.dashboard-page [hidden] { display:none!important; }
+.dashboard-page button,.dashboard-page a { -webkit-tap-highlight-color:transparent; }
+.dashboard-page button:focus-visible,.dashboard-page a:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+.dashboard-page button:hover:not(:disabled) { background:#243a44; color:#fff; }
+.dashboard-page .app-shell { width:100%; max-width:none; height:100dvh; min-height:760px; display:flex; flex-direction:column; padding:0 11px; gap:0; overflow:hidden; }
+.dashboard-page .command-header { height:56px; min-height:56px; margin:0 -11px; padding:0 32px; border-bottom:1px solid var(--line); position:relative; display:flex; justify-content:space-between; gap:16px; background:linear-gradient(110deg,#152630,#1b2c36); }
+.dashboard-page .brand { display:flex; align-items:center; gap:13px; text-decoration:none; color:var(--text); white-space:nowrap; }
+.dashboard-page .brand b { font:700 28px/1 Arial,sans-serif; letter-spacing:-.8px; }
+.dashboard-page .brand-caption { display:inline; font-size:11px; letter-spacing:.9px; color:var(--muted); }
+.dashboard-page .brand-title { margin-left:8px; padding-left:23px; border-left:1px solid var(--line); font-size:20px; font-weight:650; letter-spacing:.2px; }
+.dashboard-page .header-tools { position:absolute; top:0; bottom:0; left:50%; transform:translateX(-50%); display:flex; align-self:stretch; gap:30px; margin:0; }
+.dashboard-page .header-tools button { display:flex; position:relative; height:100%; padding:0 9px; background:transparent; border:0; border-radius:0; color:#b9c5cf; font-size:14px; }
+.dashboard-page .header-tools button[aria-current=page] { color:#fff; font-weight:600; }
+.dashboard-page .header-tools button[aria-current=page]:after { content:""; position:absolute; bottom:0; left:0; right:0; height:4px; background:var(--blue); border-radius:2px 2px 0 0; box-shadow:0 0 12px #2bd5bd22; }
+.header-status { display:flex; gap:28px; align-items:center; font-size:14px; }
+#dashboard-mode { display:flex; align-items:center; gap:8px; border:1px solid #247276; background:#12343a66; color:var(--blue); padding:7px 14px; border-radius:8px; font-size:12px; white-space:nowrap; }
+#dashboard-mode i { width:14px; height:14px; border:1px solid currentColor; border-radius:50%; position:relative; }
+#dashboard-mode i:after { content:""; position:absolute; width:4px; height:4px; border-radius:50%; background:currentColor; inset:4px; }
+#dashboard-clock { min-width:62px; font-variant-numeric:tabular-nums; }
+.dashboard-page .workspace { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.95fr) minmax(0,1fr); grid-template-rows:minmax(0,1fr); gap:10px; flex:1; min-height:0; margin-top:9px; padding:0; }
+.dashboard-page .uav-panel { grid-column:1; grid-row:1; }
+.dashboard-page .model-panel { grid-column:2; grid-row:1; }
+.dashboard-page .ugv-panel { grid-column:3; grid-row:1; }
+.dashboard-page .device-panel,.dashboard-page .model-panel,.operations-strip { border:1px solid var(--line); border-radius:10px; background:radial-gradient(ellipse at 25% 5%,#3b52632b,transparent 60%),linear-gradient(120deg,#1a2b35,#14232c); box-shadow:inset 0 1px 0 #d2e8f50a; }
+.dashboard-page .device-panel { padding:0 15px; margin:0; min-width:0; min-height:0; display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:#344c58 transparent; }
+.dashboard-page .panel-heading { height:53px; min-height:53px; display:flex; align-items:center; gap:16px; padding:0; border:0; background:none; }
+.dashboard-page .device-panel .panel-heading { flex-wrap:nowrap; }
+.dashboard-page .panel-heading h2 { display:flex; align-items:center; gap:10px; font-size:20px; letter-spacing:1px; white-space:nowrap; flex:none; }
+.dashboard-page .panel-heading h2 svg { width:27px; height:27px; color:#e1e9ee; }
+.dashboard-page .panel-heading h2 small { font-size:12px; font-weight:400; letter-spacing:.4px; color:#bdcbd5; margin-left:0; }
+.device-connection { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); white-space:nowrap; }
+.device-connection i { width:9px; height:9px; border-radius:50%; background:#657480; }
+.device-connection.is-online { color:var(--green); }
+.device-connection.is-online i { background:var(--green); box-shadow:0 0 8px #42e39d19; }
+.dashboard-page .flight-details-link,.dashboard-page .ugv-control-link { margin-left:auto; padding:3px 0; border:0; color:#c7d2dc; font-size:12px; white-space:nowrap; }
+.dashboard-page .camera-feed { position:relative; flex:none; height:clamp(180px,23.5vh,270px); min-height:0; width:100%; border:1px solid #3c515e; border-radius:7px; overflow:hidden; background:radial-gradient(ellipse at center,#1b2d37,#0b151c); }
+.dashboard-page .camera-feed:before { content:"等待有效数据"; position:absolute; left:0; right:0; top:48%; text-align:center; color:#a9becb; font-size:13px; }
+.dashboard-page .camera-feed>img { position:relative; width:100%; height:100%; object-fit:contain; image-rendering:auto; }
+.dashboard-page .camera-feed img:not([src]) { opacity:0; }
+.dashboard-page .feed-top { top:0; left:0; right:0; height:32px; padding:8px 10px; background:linear-gradient(#071017b3,transparent); display:flex; align-items:center; justify-content:flex-start; gap:8px; }
+.dashboard-page .feed-label { font-size:11px; color:#edf3f5; white-space:nowrap; }
+.dashboard-page .feed-label i { display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:var(--blue); box-shadow:none; }
+.dashboard-page .feed-quality { font-size:10px; color:#bdc9d1; }
+.dashboard-page .feed-bottom { left:0; right:0; bottom:0; padding:6px 9px; font-size:9px; color:#c3d0d8; background:linear-gradient(transparent,#071017a3); }
+.dashboard-page .feed-expand { position:absolute; top:6px; right:6px; z-index:4; height:28px; width:28px; padding:4px; border:0; background:#0a161c66; border-radius:4px; }
+.feed-expand svg { width:100%; height:100%; }
+.dashboard-page .crosshair { opacity:.6; }
+.dashboard-page .camera-toolbar { height:39px; flex:none; display:flex; padding:0; margin:11px 0 12px; border:1px solid #344b58; border-radius:8px; overflow:hidden; gap:0; }
+.dashboard-page .camera-toolbar .camera-tabs { display:flex; flex:1; gap:0; min-width:0; }
+.dashboard-page .camera-toolbar button { height:100%; flex:1; padding:0 6px; font-size:13px; color:#c0cbd5; border:1px solid transparent; background:transparent; border-radius:7px; margin:-1px 0; }
+.dashboard-page .camera-toolbar button { justify-content:center; }
+.dashboard-page .camera-toolbar button[aria-pressed=true] { background:linear-gradient(110deg,#12504d66,#12353b); border-color:var(--blue); color:#e9faf8; font-weight:600; }
+.dashboard-page .telemetry-heading { display:none; }
+.dashboard-page .metric-grid { height:140px; min-height:140px; margin:0; padding:10px 0; display:grid; grid-template-columns:1.08fr 1fr; grid-template-rows:1fr 1fr; gap:0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.dashboard-page .metric { padding:0 12px; border:0; display:flex; flex-direction:column; gap:6px; justify-content:center; min-width:0; }
+.dashboard-page .metric:nth-child(odd) { padding-left:13px; border-right:1px solid var(--line); }
+.dashboard-page .metric:nth-child(even) { padding-left:24px; }
+.dashboard-page .metric:nth-child(-n+2) { border-bottom:1px solid var(--line); padding-bottom:8px; }
+.dashboard-page .metric:nth-child(n+3) { padding-top:6px; }
+.dashboard-page .uav-panel .metric:nth-child(4) { grid-column:1;grid-row:2; border-right:1px solid var(--line); padding-left:13px; }
+.dashboard-page .uav-panel .metric:nth-child(3) { grid-column:2;grid-row:2; border-right:0; padding-left:24px; }
+.dashboard-page .metric>span { font-size:13px; color:var(--muted); }
+.dashboard-page .metric strong { font-family:"Segoe UI",Arial,sans-serif; font-size:28px; font-weight:600; line-height:1.1; letter-spacing:0; color:#f5f8fc; white-space:nowrap; }
+.dashboard-page .metric strong small { font-size:17px; font-weight:400; margin-left:2px; }
+.battery-reading { display:flex; align-items:center; gap:9px; min-width:0; }
+.battery-track { height:8px; width:80px; min-width:15px; flex:1; max-width:80px; border-radius:4px; background:#28414b; overflow:hidden; }
+.battery-track i { display:block; height:100%; width:0; border-radius:4px; background:linear-gradient(90deg,#31c9b1,#38dfc5); transition:width .3s; }
+.battery-icon { width:18px; height:13px; flex:none; fill:none; stroke:#d5e0e5; stroke-width:1.2; }
+.dashboard-page .instrument-row { flex:1; min-height:134px; height:auto; border-bottom:1px solid var(--line); padding:4px 0; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:12px; align-items:center; }
+.dashboard-page .attitude-block { min-width:0; width:auto; display:flex; flex-direction:column; align-items:center; gap:4px; border:0; }
+.dashboard-page .attitude-face { position:relative; width:100px; max-width:100%; }
+.dashboard-page .attitude-block .attitude { display:block; width:100%; height:auto; aspect-ratio:1; margin:0; }
+.dashboard-page .attitude-status { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); padding:2px 5px; border:1px solid #607889; border-radius:3px; color:#ecf3f8; background:#14232cf2; font-size:10px; line-height:1.3; white-space:nowrap; }
+.dashboard-page .attitude-readings { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 12px; width:100%; color:var(--muted); font-size:12px; line-height:1.5; }
+.dashboard-page .attitude-readings>span { display:inline-flex; align-items:baseline; gap:5px; white-space:nowrap; }
+.dashboard-page .attitude-readings b { color:var(--text); font:600 16px/1.4 "Segoe UI",Arial,sans-serif; font-variant-numeric:tabular-nums; }
+.dashboard-page .signal-block { display:flex; flex-direction:column; justify-content:center; gap:8px; min-width:0; padding-left:12px; border-left:1px solid var(--line); }
+.dashboard-page .signal-block>div { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 8px; }
+.dashboard-page .signal-block>div>span { color:var(--muted); font-size:13px; white-space:nowrap; }
+.dashboard-page .signal-block strong { margin:0; color:var(--text); font:600 28px/1.2 "Segoe UI",Arial,sans-serif; }
+.dashboard-page .signal-block p { color:#b7c9d4; font-size:11px; line-height:1.6; margin:0; overflow-wrap:anywhere; }
+.flight-footer { min-height:49px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
+.flight-footer>span { display:flex; align-items:center; gap:9px; }
+.flight-footer b { font-weight:500; color:#dfe9ee; font-size:12px; }
+#flight-link { color:var(--muted); white-space:nowrap; }
+#flight-link.is-online { color:var(--blue); }
+#flight-link svg { width:17px; height:17px; }
+.dashboard-page .model-panel { position:relative; overflow:hidden; min-width:0; min-height:0; background:#0c161d; }
+.dashboard-page .model-frame { display:block; width:100%; height:100%; border:0; position:absolute; inset:0; }
+.dashboard-page .ground-map-layer { position:absolute; inset:0; background:#0c171e; }
+.dashboard-page .ground-map-layer>img { width:100%; height:100%; object-fit:contain; padding:0; }
+.dashboard-page .ground-feed:not(.show-car-map) .ground-map-layer { display:none; }
+.dashboard-page .ugv-panel .camera-toolbar .camera-tabs { display:contents; }
+.dashboard-page #ground-map-view { font-size:13px; }
+.dashboard-page .sensor-heading { color:var(--muted); font-size:13px; padding:10px 3px 5px; }
+.dashboard-page .environment-grid { display:flex; flex-direction:column; gap:0; flex:1; height:auto; min-height:96px; margin:0; padding:0 8px 0 3px; border:0; }
+.dashboard-page .environment-grid button { display:grid; grid-template-columns:29px 1fr 42%; align-items:center; text-align:left; flex:1; min-height:30px; border:0; border-bottom:1px solid #2c424e99; border-radius:0; padding:3px 9px; background:transparent; }
+.dashboard-page .environment-grid button:last-child { border-bottom:0; }
+.dashboard-page .environment-grid svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.5; }
+.dashboard-page .environment-grid span { font-size:13px; color:#bac8d1; margin:0; }
+.dashboard-page .environment-grid b { display:flex; align-items:center; gap:14px; font-size:13px; font-weight:400; color:#c4d0d9; }
+.dashboard-page .environment-grid b:before { content:""; width:8px; height:8px; border-radius:50%; background:#63717f; }
+.dashboard-page .environment-grid b[data-state=normal]:before { background:var(--green); }
+.dashboard-page .environment-grid b[data-state=alert]:before { background:var(--amber); }
+.location-footer { display:flex; align-items:center; min-height:42px; gap:25px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+.location-footer b { font-weight:500; color:var(--muted); }
+.location-footer b.is-online { color:var(--blue); }
+#ground-camera-shortcut { margin-left:auto; color:var(--muted); font-size:10px; background:none; padding:3px; border:0; }
+.operations-strip { height:181px; min-height:181px; display:grid; grid-template-columns:40% 26% 34%; margin-top:9px; padding:11px 19px; }
+.operations-strip>section { min-width:0; }
+.section-title { display:flex; align-items:center; gap:14px; height:24px; }
+.section-title h2 { font-size:16px; font-weight:600; margin:0; white-space:nowrap; }
+.section-title button { margin-left:auto; padding:2px 0; background:none; border:0; color:#becbd5; font-size:11px; }
+.status-tag { display:inline-block; border:1px solid #29766f; border-radius:20px; padding:2px 15px; color:var(--blue); font-size:12px; line-height:1.3; }
+.current-mission { padding-right:46px; }
+.mission-summary { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0 9px; }
+.mission-summary>strong { font-size:19px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mission-summary>b { color:var(--blue); font:600 29px/1 "Segoe UI",Arial,sans-serif; }
+.mission-summary>b small { font-size:20px; }
+.mission-progress-track { height:8px; border-radius:5px; background:#22343f; overflow:hidden; }
+.mission-progress-track i { display:block; height:100%; width:0; border-radius:5px; background:linear-gradient(90deg,#28cbb3,#38dbc4); transition:width .4s; }
+.task-stages { display:flex; align-items:center; gap:8px; margin:14px 0 13px; color:#a4b3bf; font-size:11px; }
+.task-stages>span { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.task-stages i { width:20px; height:20px; display:grid; place-items:center; border:1px solid #5b6f7b; border-radius:50%; font-style:normal; font-size:14px; color:transparent; }
+.task-stages em { flex:1; height:1px; background:#314752; min-width:5px; }
+.task-stages .done i { background:#31ccb5; color:white; border-color:#63edda; }
+.task-stages .done+em { background:var(--blue); }
+.task-stages .current { color:#d0dee4; }
+.task-stages .current i { outline:1px solid var(--blue); outline-offset:3px; border-color:var(--blue); color:var(--blue); font-size:19px; }
+.task-facts { display:flex; align-items:center; justify-content:space-between; gap:10px; color:var(--muted); font-size:11px; }
+.task-facts>span,.task-facts>button { display:flex; align-items:center; gap:10px; }
+.task-facts>button { color:inherit; font-size:inherit; border:0; background:none; padding:0; }
+.task-facts svg { width:20px; height:20px; color:#ccdbe4; }
+.task-facts b { color:#e5edf2; font-size:13px; font-weight:500; margin-left:2px; }
+.warning-icon { color:var(--amber); font-size:21px; line-height:1; }
+.dashboard-page .relative-position { height:auto; display:flex; flex-direction:column; align-items:stretch; grid-column:auto; padding:0 24px 0 29px; gap:6px; border:0; border-left:1px solid var(--line); border-right:1px solid var(--line); background:none; }
+.dashboard-page .relative-title { display:flex; width:100%; justify-content:space-between; align-items:center; height:24px; }
+.dashboard-page .relative-title h3 { font-size:16px; font-weight:600; color:var(--text); }
+.dashboard-page .relative-title>span { color:var(--blue); font-size:11px; white-space:nowrap; }
+.dashboard-page .relative-title>span.amber { color:var(--muted); }
+.dashboard-page .relative-content { display:flex; align-self:stretch; width:100%; gap:22px; flex:1; min-height:0; }
+.dashboard-page .relative-content>svg { display:none; }
+.dashboard-page .relative-content dl { display:flex; flex-direction:column; gap:7px; margin:0; flex:0 0 82px; }
+.dashboard-page .relative-content dt { font-size:11px; color:var(--muted); margin-bottom:3px; }
+.dashboard-page .relative-content dd { font:500 18px/1 "Segoe UI",Arial,sans-serif; }
+.dashboard-page .relative-content small { font-size:12px; }
+.dashboard-page .relative-position>p { display:none; }
+.coordination-radar { position:relative; flex:1; min-width:0; height:125px; color:#92a5b3; font-size:10px; }
+.coordination-radar>i { display:block; position:absolute; width:95%; height:70%; border:1px solid #2a424d; border-radius:50%; left:2.5%; top:18%; background:radial-gradient(ellipse,#30465333,transparent); }
+.coordination-radar>i:nth-of-type(2) { width:72%; height:53%; left:14%; top:26%; }
+.coordination-radar>i:nth-of-type(3) { width:49%; height:36%; left:25.5%; top:34%; }
+.coordination-radar>span { position:absolute; }
+.coordination-radar .north { left:49%; top:0; }.coordination-radar .south { left:49%; bottom:0; }.coordination-radar .west { left:-3px; top:48%; }.coordination-radar .east { right:-3px; top:48%; }
+.coordination-radar>svg { position:absolute; left:calc(50% - 22px); width:44px; height:29px; stroke:#d3dde3; fill:#1a2b34; stroke-width:1.1; }
+.coordination-radar .radar-uav { top:13px; }.coordination-radar .radar-ugv { bottom:15px; }
+.coordination-radar em { position:absolute; width:1px; height:39px; left:50%; top:43px; border-left:2px dashed #5b7480; }
+.relative-position.is-valid .coordination-radar em { border-color:var(--blue); filter:drop-shadow(0 0 4px #35d8bf); }
+.recent-events { padding-left:30px; }
+#dashboard-events { list-style:none; padding:0; margin:9px 0 0; }
+#dashboard-events li { display:flex; align-items:center; gap:20px; min-height:39px; border-top:1px solid #283e49; font-size:13px; }
+#dashboard-events time { color:#b6c4cf; font-size:12px; white-space:nowrap; }
+#dashboard-events i { height:10px; width:10px; background:var(--green); border-radius:50%; flex:none; }
+#dashboard-events i.warning { background:var(--amber); }
+#dashboard-events span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#dashboard-events .empty-events { color:var(--muted); font-size:12px; }
+.dashboard-page .system-footer { height:26px; min-height:26px; padding:0 15px; display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#8498a5; }
+.system-footer>span,.system-footer>div { display:flex; gap:18px; align-items:center; }
+#dashboard-system-status { gap:8px; }
+#dashboard-system-status i { display:inline-block; width:8px; height:8px; border-radius:50%; background:#667b88; }
+#dashboard-system-status.is-online i { background:var(--green); }
+.system-footer a { color:#91a7b5; text-decoration:none; }
+.dashboard-page #action-dialog { background:#12222c; border:1px solid #385461; border-radius:10px; }
+.dashboard-page #dialog-actions .confirm { background:#116f68; border-color:#2dccb7; }
+@media(min-width:1900px) { .dashboard-page .panel-heading { height:62px; min-height:62px; }.dashboard-page .metric-grid { height:170px; min-height:170px; }.operations-strip { height:195px; min-height:195px; } }
+@media(max-width:1450px) {
+ .dashboard-page .command-header { padding:0 22px; }.dashboard-page .brand b{font-size:25px}.dashboard-page .brand-title{font-size:17px;padding-left:15px;margin-left:3px}.dashboard-page .brand-caption{font-size:9px}
+ .dashboard-page .panel-heading { gap:9px; }.dashboard-page .panel-heading h2 { font-size:17px;gap:6px; }.dashboard-page .panel-heading h2 small{font-size:10px}.dashboard-page .panel-heading h2 svg{width:22px;height:22px}.device-connection{font-size:11px;gap:5px}.device-connection i{width:7px;height:7px}
+ .dashboard-page .flight-details-link,.dashboard-page .ugv-control-link{font-size:10px}.dashboard-page .device-panel{padding:0 11px}.dashboard-page .metric strong{font-size:24px}.dashboard-page .metric strong small{font-size:14px}.dashboard-page .metric:nth-child(even),.dashboard-page .uav-panel .metric:nth-child(3){padding-left:15px}.battery-reading{gap:6px}.battery-icon{display:none}
+ .flight-footer{font-size:10px;gap:5px}.flight-footer b{font-size:10px}.flight-footer>span{gap:5px}.dashboard-page .attitude-readings{font-size:11px;gap:4px 8px}.dashboard-page .attitude-readings b{font-size:15px}
+ .current-mission{padding-right:25px}.operations-strip{padding:11px 15px}.dashboard-page .relative-position{padding:0 17px}.dashboard-page .relative-content{gap:12px}.recent-events{padding-left:20px}.mission-summary>strong{font-size:16px}.task-stages{gap:6px;font-size:10px}.task-stages>span{gap:5px}.section-title{gap:8px}.section-title h2,.dashboard-page .relative-title h3{font-size:14px}#dashboard-events li{gap:13px;font-size:11px}.header-status{gap:18px}
+}
+@media(max-width:1180px) and (min-width:901px) {
+ .dashboard-page .brand-caption{display:none}.dashboard-page .brand-title{font-size:15px}.dashboard-page .header-tools{gap:12px;left:55%}.dashboard-page .header-tools button{font-size:12px}.header-status{gap:10px}#dashboard-mode{padding:6px 9px;font-size:10px}#dashboard-clock{font-size:11px;min-width:50px}
+ .dashboard-page .panel-heading{gap:6px;flex-wrap:wrap;align-content:center;height:58px;min-height:58px;row-gap:3px}.dashboard-page .panel-heading h2{font-size:16px}.dashboard-page .flight-details-link,.dashboard-page .ugv-control-link{margin-left:auto;font-size:9px}.dashboard-page .metric{padding-right:6px;padding-left:6px}.dashboard-page .metric>span{font-size:11px}.dashboard-page .metric strong{font-size:23px}.battery-track{max-width:45px}.dashboard-page .metric:nth-child(odd),.dashboard-page .uav-panel .metric:nth-child(4){padding-left:6px}.flight-footer{flex-wrap:wrap;align-content:center;gap:5px}.flight-footer>span{white-space:nowrap}.dashboard-page .instrument-row{gap:8px}.dashboard-page .signal-block{padding-left:8px}.dashboard-page .signal-block>div>span{font-size:12px}.dashboard-page .relative-content dl{flex-basis:66px}.dashboard-page .relative-title>span{font-size:9px}.coordination-radar{min-width:60px}.current-mission{padding-right:16px}.section-title button{font-size:9px}.task-stages>span{gap:4px}.task-stages i{width:16px;height:16px}.task-stages{gap:4px;font-size:9px}.task-facts{gap:6px;font-size:10px}.task-facts>span,.task-facts>button{gap:5px}.task-facts b{font-size:11px}.location-footer{gap:10px;font-size:11px}
+}
+@media(max-width:900px) {
+ .dashboard-page .model-panel{grid-column:1/-1;grid-row:1}.dashboard-page .uav-panel{grid-column:1;grid-row:2}.dashboard-page .ugv-panel{grid-column:2;grid-row:2}
+ .dashboard-page .app-shell{height:auto;min-height:100dvh;overflow:visible;padding:0 10px}.dashboard-page .command-header{height:auto;min-height:90px;flex-wrap:wrap;padding:12px 16px 0;margin:0 -10px;gap:10px}.dashboard-page .brand{gap:9px}.dashboard-page .brand b{font-size:24px}.dashboard-page .brand-caption{display:none}.dashboard-page .brand-title{font-size:16px}.dashboard-page .header-tools{position:static;transform:none;order:3;width:100%;justify-content:center;height:36px;gap:30px}.header-status{margin-left:auto}.dashboard-page .workspace{grid-template-columns:1fr 1fr;grid-template-rows:540px auto;gap:10px;overflow:visible;flex:none}.dashboard-page .model-panel{grid-column:1/-1;grid-row:1}.dashboard-page .device-panel{grid-row:2;min-height:600px;overflow:visible}.dashboard-page .camera-feed{height:205px}.operations-strip{height:auto;min-height:0;grid-template-columns:1fr 1fr;gap:20px;padding:16px}.current-mission{grid-column:1/-1;padding:0}.dashboard-page .relative-position{border-left:0;padding:0 20px 0 0}.recent-events{padding-left:0}.dashboard-page .system-footer{height:auto;min-height:32px;gap:10px;flex-wrap:wrap;padding:8px}.system-footer>div{gap:12px;flex-wrap:wrap}.dashboard-page .metric-grid{height:142px;min-height:142px}.flight-footer{min-height:43px}
+}
+@media(max-width:540px) {
+ .dashboard-page .command-header{padding:12px 10px 0}.dashboard-page .brand-title{font-size:14px;padding-left:10px}.dashboard-page .brand b{font-size:23px}#dashboard-clock{display:none}#dashboard-mode{font-size:10px;padding:6px 8px}.dashboard-page .workspace{display:flex;flex-direction:column}.dashboard-page .model-panel{order:-1;height:510px;flex:none}.dashboard-page .device-panel{min-height:620px}.dashboard-page .camera-feed{height:230px}.dashboard-page .panel-heading h2{font-size:19px}.dashboard-page .panel-heading h2 small{font-size:12px}.device-connection{font-size:12px}.dashboard-page .flight-details-link,.dashboard-page .ugv-control-link{font-size:12px}.operations-strip{display:flex;flex-direction:column;gap:20px;padding:15px}.dashboard-page .relative-position{border:0;border-top:1px solid var(--line);padding:14px 0 0;min-height:165px}.dashboard-page .relative-content dl{flex-basis:40%}.coordination-radar{max-width:190px}.recent-events{border-top:1px solid var(--line);padding-top:12px}.mission-summary>strong{font-size:16px}.task-stages{font-size:10px}.task-stages>span{gap:5px}.task-facts{font-size:11px}.task-facts b{font-size:12px}.section-title h2,.dashboard-page .relative-title h3{font-size:16px}.dashboard-page .system-footer>div{gap:10px}#dashboard-source{width:100%}
+}
+@media(prefers-reduced-motion:reduce) { .battery-track i,.mission-progress-track i{transition:none} }
+/* Keep both real UGV sources visible, matching the reference's three actions. */
+.dashboard-page .ugv-panel .camera-toolbar .camera-tabs { display:flex; flex:2; }
+.dashboard-page .ugv-panel .camera-toolbar #mark-ground { flex:1; }
+.dashboard-page .ugv-control-link { background:none; border:0; padding:0; white-space:nowrap; }
+.dashboard-page #ground-camera-select { color:#c7d9e2; background:#142731; border:1px solid #35505d; border-radius:4px; font-size:11px; padding:2px 5px; max-width:100px; }
+.dashboard-page .relative-position:not(.is-valid) .coordination-radar em { visibility:hidden; }
+.dashboard-page #anomaly-point { display:block; width:100%; padding:9px; margin:8px 0 14px; color:#dce9ef; background:#0c1b24; border:1px solid #3a5361; border-radius:5px; }
+
+.dashboard-page .coordination-radar .south { bottom:3px; }
+
+.dashboard-page #ground-camera-select { position:absolute; right:8px; top:40px; z-index:5; }
+.dashboard-page .feed-mark { position:absolute; right:7px; top:41px; z-index:5; width:27px; height:25px; padding:0; color:#cbdde4; border:1px solid #344c57; border-radius:4px; background:#10242ad9; }
+
+.dashboard-page .camera-feed:fullscreen { width:100vw; height:100vh; border-radius:0; background:#07131b; }
+.dashboard-page .camera-feed:fullscreen>img { object-fit:contain; }
+.dashboard-page .metric-grid strong .metric-sample-note{display:block;color:var(--amber,#ffc16b);font-size:10px;font-weight:400;line-height:1.3;margin-top:3px;white-space:nowrap}

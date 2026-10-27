@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createUpstreamIntegrations } from '../src/upstream.js';
+import { normalizeUgvStatus } from '../src/ugv.js';
 
 const fixture = () => ({
   server_time_ms: 1791513351230,
@@ -12,6 +13,23 @@ const fixture = () => ({
   camera: { ready: false, age_s: null }, leadscrew: { age_s: 0.1, status: { state: [4, 4] } }
 });
 const read = status => createUpstreamIntegrations({ carUrl: 'http://127.0.0.1:8765', fetchImpl: async () => new Response(JSON.stringify(status)) }).telemetry('UGV-01');
+
+test('DHT 重试沿用车端 15 秒窗口，不刷新旧样本年龄或放宽车速有效期', () => {
+  const raw = fixture();
+  Object.assign(raw.environment, { age_s: 11, error: 'Checksum did not validate', consecutive_errors: 3 });
+  const retry = normalizeUgvStatus(raw, 0.2);
+  assert.equal(retry.metrics.temperature.value, 0);
+  assert.equal(retry.metrics.humidity.value, 0);
+  assert.equal(retry.metrics.temperature.ageS, 11.2);
+  assert.equal(retry.metrics.temperature.maxAgeS, 15);
+  assert.equal(retry.metrics.speed.maxAgeS, 2);
+  assert.equal(retry.environment.consecutiveErrors, 3);
+  raw.environment.age_s = 14.9;
+  assert.equal(normalizeUgvStatus(raw, 0.2).metrics.temperature.value, null);
+  raw.environment.age_s = 1;
+  raw.environment.stale = true;
+  assert.equal(normalizeUgvStatus(raw).metrics.humidity.value, null, '车端主动判失效仍立即生效');
+});
 
 test('小车实时契约保留零值、位姿和未触发状态，映射现有环境与机构数据', async () => {
   const data = await read(fixture());
@@ -29,7 +47,7 @@ test('小车实时契约保留零值、位姿和未触发状态，映射现有�
 });
 
 test('小车传感器独立检查年龄，过期缓存及错误数据不成为实时值', async () => {
-  for (const change of [{ age_s: 11 }, { age_s: -1 }, { age_s: null }, { age_s: '0.1' }, { available: false }, { stale: true }, { temperature_c: '23.7', humidity_percent: 101 }]) {
+  for (const change of [{ age_s: 16 }, { age_s: -1 }, { age_s: null }, { age_s: '0.1' }, { available: false }, { stale: true }, { temperature_c: '23.7', humidity_percent: 101 }]) {
     const status = fixture(); Object.assign(status.environment, change);
     const data = await read(status);
     assert.equal(data.environment.temperatureC, null);

@@ -5,7 +5,12 @@ import { Readable } from 'node:stream';
 import { assets, devices, mission, missionId, site } from './catalog.js';
 import { unconfiguredIntegrations } from './integrations.js';
 
-const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png' };
+const mime = {
+  '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.png': 'image/png', '.glb': 'model/gltf-binary',
+  '.wasm': 'application/wasm', '.task': 'application/octet-stream'
+};
 const allowedStatus = new Set(['acknowledged', 'reviewed']);
 
 function json(res, status, body, headers = {}) {
@@ -137,16 +142,21 @@ export function createApp({ store, webRoot, integrations = unconfiguredIntegrati
         res.once('close', abort);
         const clientId = requestUrl.searchParams.get('clientId')?.slice(0, 80) || crypto.randomUUID();
         const health = { clientId, deviceId: cameraMatch[1], cameraId: cameraMatch[2], openedAt: new Date().toISOString(), lastDataAt: null, receivedBytes: 0, active: false, closedAt: null };
-        // 仅保留最近连接，避免历史连接占用无限内存。
+        // Evict completed requests first: JPEG polling must not hide an active MJPEG stream.
         mediaHealth.set(clientId + ':' + cameraMatch[1] + ':' + cameraMatch[2], health);
-        while (mediaHealth.size > 128) mediaHealth.delete(mediaHealth.keys().next().value);
+        while (mediaHealth.size > 128) {
+          const completed = [...mediaHealth].find(([, item]) => item.closedAt !== null);
+          mediaHealth.delete(completed?.[0] ?? mediaHealth.keys().next().value);
+        }
         try { return proxyMedia(res, await integrations.media(cameraMatch[1], cameraMatch[2], { signal: controller.signal }), health, abort); }
         catch (error) { health.closedAt = new Date().toISOString(); abort(); throw error; }
       }
       const deviceMatch = pathname.match(/^\/api\/v1\/devices\/([^/]+)\/(telemetry|streams)$/);
       if (req.method === 'GET' && deviceMatch) {
         if (!devices.some(item => item.id === deviceMatch[1])) return fail(res, 404, 'DEVICE_NOT_FOUND', '设备不存在');
-        const value = deviceMatch[2] === 'telemetry' ? await integrations.telemetry(deviceMatch[1]) : await integrations.stream(deviceMatch[1]);
+        const source = requestUrl.searchParams.get('source');
+        if (source !== null && (deviceMatch[1] !== 'UAV-01' || deviceMatch[2] !== 'telemetry' || !['flight', 'vision'].includes(source))) return fail(res, 400, 'INVALID_TELEMETRY_SOURCE', '遥测来源必须为 flight 或 vision');
+        const value = deviceMatch[2] === 'telemetry' ? await integrations.telemetry(deviceMatch[1], source || undefined) : await integrations.stream(deviceMatch[1]);
         if (deviceMatch[2] === 'streams') value.streamHealth = [...mediaHealth.values()].filter(item => item.deviceId === deviceMatch[1]).map(item => ({ ...item, idleAgeMs: item.lastDataAt ? Date.now() - Date.parse(item.lastDataAt) : null }));
         return json(res, 200, { data: value });
       }
