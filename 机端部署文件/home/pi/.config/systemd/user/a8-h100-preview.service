@@ -1,0 +1,14 @@
+[Unit]
+Description=A8 mini H100 shared camera viewer
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 -u /home/pi/a8mini/h100-web/server.py
+WorkingDirectory=/home/pi/a8mini/h100-web
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+Nice=10
+
+[Install]
+WantedBy=default.target

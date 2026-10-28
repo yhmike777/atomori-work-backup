@@ -22,7 +22,11 @@
       <div class="overview-modes" aria-label="模型展示方式"><button id="overview-whole" aria-pressed="false" disabled>整机</button><button id="overview-structure" aria-pressed="true" disabled>结构</button></div>
       <canvas id="viewer" tabindex="0" aria-label="三维模型：拖动旋转，滚轮缩放，点击零件拆解。键盘方向键旋转，加减键缩放。"></canvas>
       <svg class="overview-annotations" aria-hidden="true"><g data-callout="uav"><path/><circle r="2"/><text>无人机平台</text></g><g data-callout="vision"><path/><circle r="2"/><text>视觉模组</text></g><g data-callout="chassis"><path/><circle r="2"/><text>移动底盘</text></g></svg>
-      <div class="overview-actions" aria-label="模型操作"><button id="overview-rotate" aria-pressed="false" disabled><svg viewBox="0 0 24 24"><path d="M17 4a8 8 0 1 1-8 0M12 2v6m-3-3 3-3 3 3"/></svg>旋转视图</button><button id="overview-reset" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/></svg>复位</button><a id="overview-fullscreen" href="./index.html" target="_top" title="打开完整整机与爆炸图界面"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg><span>全屏</span></a></div>
+      <div class="overview-actions" aria-label="模型操作">
+        <button id="overview-rotate" aria-label="旋转视图" title="旋转视图" aria-pressed="false" disabled><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17 4a8 8 0 1 1-8 0M12 2v6m-3-3 3-3 3 3"/></svg></button>
+        <button id="overview-reset" aria-label="复位" title="复位" disabled><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/></svg></button>
+        <a id="overview-fullscreen" href="./index.html" target="_top" aria-label="全屏" title="全屏"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></a>
+      </div>
       <div id="loading" role="status"><span class="spinner"></span><p>正在载入三维模型…</p><button id="retry" hidden>重新加载</button></div>
       <button id="drawer-toggle" type="button" aria-expanded="false" aria-controls="parts-panel" disabled>零件</button>
       <div class="view-tools" aria-label="视角工具"><button id="home" title="恢复初始视角" aria-label="恢复初始视角">⌂</button><button id="zoom-in" title="放大" aria-label="放大">＋</button><button id="zoom-out" title="缩小" aria-label="缩小">−</button></div>
@@ -38,7 +42,7 @@
       <div class="spread"><label for="spread">展开程度</label><output id="spread-value" for="spread">0%</output><input id="spread" type="range" min="0" max="50" value="0" disabled aria-label="展开程度" /></div>
       <div class="spread distance"><label for="distance">展开间距</label><output id="distance-value">50%</output><input id="distance" type="range" min="40" max="50" value="50" disabled /></div>
       <div class="display-options"><select id="view" aria-label="视角" disabled><option value="perspective">立体视角</option><option value="front">前视</option><option value="rear">后视</option><option value="left">左视</option><option value="right">右视</option><option value="top">俯视</option><option value="bottom">仰视</option></select><button id="autorotate" aria-pressed="false" disabled>自动旋转</button><button id="snapshot" disabled>保存图片</button></div>
-      <details class="gesture-panel"><summary>摄像头手势控制</summary><p>握拳后张掌展开，张掌后握拳还原。单掌移动旋转，双掌开合缩放。手指朝上，双掌朝向镜头。</p><button id="camera-toggle" aria-pressed="false">启用摄像头</button><video id="camera-video" muted playsinline hidden></video><p id="camera-status" role="status">仅在本机识别，不录制或上传画面。</p></details>
+      <details class="gesture-panel"><summary>摄像头手势控制</summary><p>先握拳，提示稳定后再张掌展开；张掌后握拳还原。单掌移动旋转，双掌开合缩放。手指朝上，手掌保持在画面内。</p><button id="camera-toggle" aria-pressed="false">启用摄像头</button><p id="camera-status" role="status" aria-live="polite">仅在本机识别，不录制或上传画面。</p><video id="camera-video" muted playsinline hidden></video></details>
       <label class="control-label" for="part-search">查找部件</label><input id="part-search" type="search" placeholder="例如：外壳、7寸、电池" />
       <div id="parts" aria-label="装配组列表"></div>
       <div class="selection-info" aria-live="polite"><span id="selection-title">点击任一部件开始</span><p id="selection-description">移开护板，查看感知、计算通信、驱动与电池模块。</p></div>

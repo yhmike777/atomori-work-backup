@@ -1,13 +1,13 @@
-import { GestureGate, GestureTransitions } from './gesture-gate.js';
+import { SingleHandGestures } from './gesture-gate.js';
 import { PalmMotion } from './palm-motion.js';
 import { TwoHandMotion } from './two-hand-motion.js';
 import { inspectHand, inspectTwoHands } from './hand-pose.js';
 
 export function setupGestures({ expand, rotate, zoom, ready }) {
   const video=document.getElementById('camera-video'), button=document.getElementById('camera-toggle'), status=document.getElementById('camera-status');
-  const gate=new GestureGate(), transitions=new GestureTransitions(), palm=new PalmMotion(), pair=new TwoHandMotion();
+  const single=new SingleHandGestures(), palm=new PalmMotion(), pair=new TwoHandMotion();
   let stream, recognizer, frame, generation=0, busy=false, lastTime=-1, lastInference=0, suppressed=0, interacting=false;
-  const reset=()=>{gate.reset();transitions.reset();palm.reset();pair.reset();};
+  const reset=()=>{single.reset();palm.reset();pair.reset();};
   function manual(active=false){interacting=active;suppressed=performance.now()+1400;reset();}
   function stop(){generation++;cancelAnimationFrame(frame);stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;video.hidden=true;button.textContent='启用摄像头';button.setAttribute('aria-pressed','false');status.textContent='摄像头已关闭';reset();}
   function infer(){
@@ -19,19 +19,21 @@ export function setupGestures({ expand, rotate, zoom, ready }) {
         const result=recognizer.recognizeForVideo(video,now), count=result.landmarks.length, aspect=video.videoWidth/video.videoHeight;
         if(!ready()||interacting||now<suppressed){reset();status.textContent='手动操作优先 · 手势暂候';}
         else if(count===2){
-          gate.reset();transitions.reset();palm.reset();
+          single.reset();palm.reset();
           const pose=inspectTwoHands(result,aspect), motion=pair.update(result.landmarks,now,pose.eligible,aspect);
           status.textContent=pose.eligible?'双掌外扩放大，内合缩小':pose.reason;
           if(motion.logScale)zoom(Math.exp(-motion.logScale*1.7));
         }else{
           pair.reset();const cat=result.gestures?.[0]?.[0],name=cat?.categoryName,score=cat?.score||0;
           const valid=count===1&&inspectHand(result.landmarks[0],result.handedness?.[0],name,aspect).upright;
-          if(count===1&&!valid){gate.reset();transitions.reset();}
-          const stable=gate.update(name,score,valid?1:0,now), change=transitions.update(stable,now,valid?1:0);
+          const {stable,change}=single.update(name,score,count,valid,now);
           const motion=palm.update(result.landmarks[0],now,stable===1);
           if(motion.dx||motion.dy)rotate(-motion.dx*5,-motion.dy*4);
           if(change!==null)expand(change);
-          status.textContent=!count?'等待手势':!valid?'请保持手指朝上':stable===1?'张掌移动旋转 · 握拳还原':stable===0?'握拳就绪 · 张掌展开':'保持姿势片刻';
+          const label=({Open_Palm:'张掌',Closed_Fist:'握拳'})[name]||'其他手势';
+          const reading=`识别：${label} ${Math.round(score*100)}% · `;
+          const hint=!valid?'请保持手指朝上':stable===1?'张掌已稳定，移动旋转；握拳还原':stable===0?'握拳已稳定，再张掌展开':score<.65?'置信度不足，请让整只手清晰入镜':'请保持当前姿势，等待稳定';
+          status.textContent=count?reading+hint:'未检测到手，请让整只手进入画面';
         }
       }catch(error){stop();status.textContent='识别中断：'+error.message;return;}
     }
