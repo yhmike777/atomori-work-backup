@@ -17,14 +17,15 @@ console.log('PASS: initial pose ignored, bidirectional edges, held pose, brief a
 
 const slow=new GestureGate();
 assert.equal(slow.update('Closed_Fist',.95,1,0),null);
-assert.equal(slow.update('Closed_Fist',.95,1,400),null);
+assert.equal(slow.update('Closed_Fist',.95,1,400),0,'two slow matching frames can confirm a fist');
 assert.equal(slow.update('Closed_Fist',.95,1,800),0,'CPU inference at 2.5 fps can establish a stable pose');
 const jitter=new GestureGate();
 jitter.update('Open_Palm',.95,1,0);jitter.update('Open_Palm',.95,1,100);
-assert.equal(jitter.update('Open_Palm',.60,1,200),null,'weak frames never trigger a command');
+assert.equal(jitter.update('Open_Palm',.40,1,200),null,'weak frames never trigger a command');
 assert.equal(jitter.update('Open_Palm',.95,1,350),1,'a brief confidence dip retains good evidence');
 const weak=new GestureGate();
-for(let now=0;now<2000;now+=100)assert.equal(weak.update('Open_Palm',.60,1,now),null,'low confidence alone never stabilizes');
+for(let now=0;now<2000;now+=100)assert.equal(weak.update('Open_Palm',.44,1,now),null,'below-threshold confidence alone never stabilizes');
+for(const score of [NaN,Infinity,undefined,'0.9'])assert.equal(new GestureGate().update('Open_Palm',score,1,0),null,'invalid scores never contribute evidence');
 const lost=new GestureGate();
 lost.update('Open_Palm',.95,1,0);lost.update('Open_Palm',.95,1,100);
 assert.equal(lost.update('Open_Palm',.95,1,900),null,'stale samples do not complete an old pose');
@@ -44,3 +45,17 @@ assert.deepEqual(sequence([['Closed_Fist'],['Open_Palm',false,1,10],['Open_Palm'
 assert.deepEqual(sequence([['Closed_Fist'],['Open_Palm',true,2,1],['Open_Palm']]),[],'two hands cannot complete a single-hand command');
 assert.deepEqual(sequence([['Open_Palm',true,1,30]]),[],'initial and held poses still do not issue repeated commands');
 console.log('PASS: slow CPU frames, short confidence dips, confidence threshold, stale evidence and orientation gaps.');
+
+const easier=new SingleHandGestures();
+assert.equal(easier.update('Closed_Fist',.45,1,true,0).change,null);
+assert.equal(easier.update('Closed_Fist',.45,1,true,120).stable,0);
+assert.equal(easier.update('Open_Palm',.45,1,true,180).change,null,'one palm frame cannot trigger');
+assert.equal(easier.update('Open_Palm',.45,1,true,300).change,1,'45% fist then palm expands after 120ms confirmation');
+assert.equal(easier.update('Open_Palm',.45,1,true,420).change,null,'held palm never repeats');
+assert.equal(easier.update('Closed_Fist',.45,1,true,480).change,null);
+assert.equal(easier.update('Closed_Fist',.45,1,true,600).change,0,'same threshold restores');
+const spike=new SingleHandGestures();
+spike.update('Closed_Fist',.9,1,true,0);spike.update('Closed_Fist',.9,1,true,120);
+assert.equal(spike.update('Open_Palm',.99,1,true,180).change,null);
+assert.equal(spike.update('Closed_Fist',.9,1,true,240).change,null,'one misclassified open frame cannot explode the model');
+console.log('PASS: lower confidence, faster confirmation, one-frame rejection and bidirectional transition.');

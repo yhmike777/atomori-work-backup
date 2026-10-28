@@ -12,7 +12,7 @@ const TWO_HAND_POSE = Object.freeze({palmLength:.0075,upCos:.325,fingerRise:.09,
 export function inspectHand(landmarks, handedness, gestureName, aspectRatio = 1, limits = SINGLE_HAND_POSE) {
   const category = first(handedness);
   const label = nameOf(category);
-  const base = { upright:false, palmFacing:false, label, handednessScore:category?.score ?? 0, upCos:0, facingScore:0 };
+  const base = { tracked:false, upright:false, palmFacing:false, label, handednessScore:category?.score ?? 0, upCos:0, facingScore:0 };
   if (!Array.isArray(landmarks) || landmarks.length !== 21 || !Number.isFinite(aspectRatio) || aspectRatio <= 0 ||
       landmarks.some(point => !point || !Number.isFinite(point.x) || !Number.isFinite(point.y) || !Number.isFinite(point.z))) return base;
   const point = index => ({ x:landmarks[index].x*aspectRatio, y:landmarks[index].y, z:landmarks[index].z*aspectRatio });
@@ -37,7 +37,7 @@ export function inspectHand(landmarks, handedness, gestureName, aspectRatio = 1,
   // Calibrated against this project's raw Tasks recognizer output: back-facing
   // Left has negative triangle z; back-facing Right has positive triangle z.
   // Require a broad palm surface, rejecting the back and near-edge-on poses.
-  return { ...base, upright, palmFacing:facingScore>=limits.facingScore && palmWidth/palmLength>=limits.widthRatio, upCos, facingScore, palmLength };
+  return { ...base, tracked:true, upright, palmFacing:facingScore>=limits.facingScore && palmWidth/palmLength>=limits.widthRatio, upCos, facingScore, palmLength };
 }
 
 export function inspectTwoHands(result, aspectRatio = 1) {

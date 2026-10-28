@@ -1,4 +1,4 @@
-# 实时只读巡检：车端、Mission Planner 飞控转发和独立机载视觉；缺失数据不回退演示。
+﻿# 实时只读巡检：车端、Mission Planner 飞控转发和独立机载视觉；缺失数据不回退演示。
 param(
   [string]$CarUrl = 'http://192.168.1.21:8765',
   [switch]$DisconnectCar = $true,

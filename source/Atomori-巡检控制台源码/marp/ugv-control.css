@@ -1,9 +1,23 @@
 .vehicle-control-shell {
+  width: 100%;
+  max-width: none;
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
   min-height: 480px;
+}
+
+.vehicle-control-shell .flight-title {
+  padding: 18px 0 16px;
+}
+
+.vehicle-control-shell .flight-title h1 {
+  font-size: 24px;
+}
+
+.vehicle-control-shell .subtitle {
+  margin-top: 5px;
 }
 
 .vehicle-control-shell .flight-header,
@@ -30,6 +44,10 @@
 }
 
 @media (max-width: 640px) {
+  .vehicle-control-shell {
+    padding: 0 12px;
+  }
+
   .vehicle-control-main {
     padding-bottom: 16px;
   }

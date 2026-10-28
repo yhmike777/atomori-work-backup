@@ -1,4 +1,4 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 param(
   [string]$MissionPlannerIp = '192.168.1.7',
   [string]$PlatformIp = '192.168.1.9'

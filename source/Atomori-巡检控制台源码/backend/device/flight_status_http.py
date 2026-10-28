@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import json
 import math
 import threading
@@ -16,7 +17,8 @@ from mavros_msgs.msg import ExtendedState, PositionTarget, RCIn, State, VfrHud
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from std_msgs.msg import Float64, String
-from sensor_msgs.msg import BatteryState, Range
+from sensor_msgs.msg import BatteryState, Imu, Range
+from flight_telemetry import FlightTelemetry
 
 
 LANDED_STATES = {
@@ -126,8 +128,12 @@ def command_yaw_rate(command: dict) -> Optional[float]:
 
 
 class FlightStatusState:
+    # Display-only allowance for jitter in the approximately 1 Hz FCU state stream.
+    VEHICLE_STATE_MAXIMUM_AGE_S = 3.0
+
     def __init__(self, velocity_deadband_mps: float) -> None:
         self.lock = threading.Lock()
+        self.extra = FlightTelemetry()
         self.velocity_deadband_mps = velocity_deadband_mps
         self.vehicle: dict = {
             "connected": False,
@@ -148,6 +154,11 @@ class FlightStatusState:
         self.pose_quaternion: Optional[tuple] = None
         self.pose_received_s: Optional[float] = None
         self.pose_altitude_m: Optional[float] = None
+        self.imu_quaternion: Optional[tuple] = None
+        self.imu_received_s: Optional[float] = None
+        self.imu_values: dict = {}
+        self.heading_deg: Optional[float] = None
+        self.heading_received_s: Optional[float] = None
         self.local_vertical_speed_mps: Optional[float] = None
         self.local_velocity_received_s: Optional[float] = None
         self.rangefinder_m: Optional[float] = None
@@ -195,6 +206,11 @@ class FlightStatusState:
             pose_age = None if self.pose_received_s is None else max(0.0, now_s - self.pose_received_s)
             quaternion = self.pose_quaternion if pose_age is not None and pose_age <= 0.5 else None
             pose_altitude = self.pose_altitude_m
+            imu_age = None if self.imu_received_s is None else max(0.0, now_s - self.imu_received_s)
+            imu_quaternion = self.imu_quaternion
+            imu_values = dict(self.imu_values)
+            heading = self.heading_deg
+            heading_age = None if self.heading_received_s is None else max(0.0, now_s - self.heading_received_s)
             local_speed = self.local_vertical_speed_mps
             local_age = None if self.local_velocity_received_s is None else max(0.0, now_s - self.local_velocity_received_s)
             rangefinder = self.rangefinder_m
@@ -216,48 +232,80 @@ class FlightStatusState:
         horizontal = axis_direction(vx, "FORWARD", "BACKWARD", self.velocity_deadband_mps)
         lateral = axis_direction(vy, "LEFT", "RIGHT", self.velocity_deadband_mps)
         vertical = axis_direction(vz, "UP", "DOWN", self.velocity_deadband_mps)
-        connected = bool(vehicle.get("connected", False)) and vehicle_age is not None and vehicle_age <= 1.0
-        attitude = attitude_degrees(quaternion)
+        if vehicle_age is None:
+            connection_status = "NO_STATE"
+        elif vehicle_age > self.VEHICLE_STATE_MAXIMUM_AGE_S:
+            connection_status = "STATE_STALE"
+        elif not bool(vehicle.get("connected", False)):
+            connection_status = "FCU_DISCONNECTED"
+        else:
+            connection_status = "CONNECTED"
+        connected = connection_status == "CONNECTED"
+        # Keep the original state-age gate for commands and other telemetry.
+        telemetry_state_fresh = connected and vehicle_age is not None and vehicle_age <= 1.0
+        # Display heartbeat gate matches the HTTP adapter; command gates stay at 1 s.
+        display_state_fresh = connected and vehicle_age is not None and vehicle_age <= 2.0
+        attitude = attitude_degrees(imu_quaternion) if imu_age is not None and imu_age <= 0.5 else None
+        attitude_age, attitude_source = imu_age, "/mavros/imu/data.orientation (ENU/FLU -> FRD)"
+        if attitude is None:
+            attitude = attitude_degrees(quaternion)
+            attitude_age, attitude_source = pose_age, "/mavros/local_position/pose.orientation (ENU/FLU -> FRD)"
         roll, pitch = attitude if attitude is not None else (None, None)
         telemetry_meta = {
-            "roll_deg": metric_metadata(roll, connected=connected,
-                age=pose_age, max_age=0.5, source="/mavros/local_position/pose.orientation (ENU/FLU -> FRD)", unit="deg"),
-            "pitch_deg": metric_metadata(pitch, connected=connected,
-                age=pose_age, max_age=0.5, source="/mavros/local_position/pose.orientation (ENU/FLU -> FRD)", unit="deg"),
-            "battery_voltage_v": metric_metadata(battery_voltage, connected=connected,
+            "roll_deg": metric_metadata(roll, connected=display_state_fresh,
+                age=attitude_age, max_age=0.5, source=attitude_source, unit="deg"),
+            "pitch_deg": metric_metadata(pitch, connected=display_state_fresh,
+                age=attitude_age, max_age=0.5, source=attitude_source, unit="deg"),
+            "heading_deg": metric_metadata(heading, connected=display_state_fresh,
+                age=heading_age, max_age=0.5, source="/mavros/global_position/compass_hdg", unit="deg"),
+            "battery_voltage_v": metric_metadata(battery_voltage, connected=display_state_fresh,
                 age=battery_age, max_age=3.0, source="/mavros/battery.voltage", unit="V"),
-            "battery_remaining_pct": metric_metadata(battery_remaining, connected=connected,
+            "battery_remaining_pct": metric_metadata(battery_remaining, connected=display_state_fresh,
                 age=battery_age, max_age=3.0, source="/mavros/battery.percentage", unit="%"),
-            "relative_altitude_m": metric_metadata(relative_altitude, connected=connected,
+            "relative_altitude_m": metric_metadata(relative_altitude, connected=display_state_fresh,
                 age=relative_age, max_age=3.0, source="/mavros/global_position/rel_alt", unit="m"),
-            "rangefinder_m": metric_metadata(rangefinder, connected=connected,
+            "rangefinder_m": metric_metadata(rangefinder, connected=telemetry_state_fresh,
                 age=range_age, max_age=1.0, source="/landing/sensor_range", unit="m"),
-            "estimated_altitude_m": metric_metadata(pose_altitude, connected=connected,
+            "estimated_altitude_m": metric_metadata(pose_altitude, connected=telemetry_state_fresh,
                 age=pose_age, max_age=1.0, source="/mavros/local_position/pose.position.z", unit="m"),
         }
-        command_fresh = connected and vehicle.get("mode") == "GUIDED" and command_age is not None and command_age <= 0.5
+        for group, unit, ros_field in (("gyro", "rad/s", "angular_velocity"), ("accel", "m/s²", "linear_acceleration")):
+            for axis in "xyz":
+                key = f"{group}_{axis}"
+                telemetry_meta[key] = metric_metadata(imu_values.get(key), connected=display_state_fresh,
+                    age=imu_age, max_age=0.5, source=f"/mavros/imu/data.{ros_field}.{axis} (FLU)", unit=unit)
+        # A delayed state sample is not an explicit FCU disconnect.
+        for meta in telemetry_meta.values():
+            if connected and meta["reason"] == "FLIGHT_CONTROLLER_DISCONNECTED":
+                meta["reason"] = "STATE_STALE_FOR_TELEMETRY"
+        command_fresh = telemetry_state_fresh and vehicle.get("mode") == "GUIDED" and command_age is not None and command_age <= 0.5
         command_body = command_to_body_flu(command, quaternion) if command_fresh and command else None
         yaw_rate = command_yaw_rate(command) if command_fresh and command else None
         command_state = "READY" if command_body is not None else ("FRAME_OR_POSE_UNAVAILABLE" if command_fresh else "NO_FRESH_COMMAND")
         telemetry = {
+            **{key: value if telemetry_meta[key]["valid"] else None for key, value in imu_values.items()},
+            "heading_deg": heading if telemetry_meta["heading_deg"]["valid"] else None,
             "roll_deg": roll if telemetry_meta["roll_deg"]["valid"] else None,
             "pitch_deg": pitch if telemetry_meta["pitch_deg"]["valid"] else None,
-            "estimated_altitude_m": pose_altitude if connected and pose_age is not None and pose_age <= 1.0 else None,
-            "rangefinder_m": rangefinder if connected and range_age is not None and range_age <= 1.0 else None,
-            "vertical_speed_mps": local_speed if connected and local_age is not None and local_age <= 1.0 else None,
+            "estimated_altitude_m": pose_altitude if telemetry_state_fresh and pose_age is not None and pose_age <= 1.0 else None,
+            "rangefinder_m": rangefinder if telemetry_state_fresh and range_age is not None and range_age <= 1.0 else None,
+            "vertical_speed_mps": local_speed if telemetry_state_fresh and local_age is not None and local_age <= 1.0 else None,
             "commanded_vertical_speed_mps": (float(command["velocity"]["z"])
                 if command_fresh and command and not (command["type_mask"] & 32)
                 and math.isfinite(float(command["velocity"]["z"])) else None),
-            "rc3_pwm": rc3 if connected and rc_age is not None and rc_age <= 1.0 else None,
-            "motor_throttle_pct": motor_throttle if connected and vfr_age is not None and vfr_age <= 1.0 else None,
-            "vfr_altitude_msl_m": vfr_altitude if connected and vfr_age is not None and vfr_age <= 1.0 else None,
+            "rc3_pwm": rc3 if telemetry_state_fresh and rc_age is not None and rc_age <= 1.0 else None,
+            "motor_throttle_pct": motor_throttle if telemetry_state_fresh and vfr_age is not None and vfr_age <= 1.0 else None,
+            "vfr_altitude_msl_m": vfr_altitude if telemetry_state_fresh and vfr_age is not None and vfr_age <= 1.0 else None,
             "battery_voltage_v": battery_voltage if telemetry_meta["battery_voltage_v"]["valid"] else None,
             "battery_remaining_pct": battery_remaining if telemetry_meta["battery_remaining_pct"]["valid"] else None,
             "relative_altitude_m": relative_altitude if telemetry_meta["relative_altitude_m"]["valid"] else None,
         }
         return {
+            **self.extra.snapshot(display_state_fresh),
             "available": vehicle_age is not None,
             "flight_controller_connected": connected,
+            "connection_status": connection_status,
+            "vehicle_state_maximum_age_s": self.VEHICLE_STATE_MAXIMUM_AGE_S,
             "armed": bool(vehicle.get("armed", False)) if connected else False,
             "mode": str(vehicle.get("mode", "UNKNOWN")) if connected else "DISCONNECTED",
             "system_status": int(vehicle.get("system_status", 0)),
@@ -305,6 +353,25 @@ class FlightStatusState:
 class FlightStatusHandler(BaseHTTPRequestHandler):
     state: FlightStatusState
 
+    def accepts_gzip(self) -> bool:
+        # Only explicit gzip support enables compression; wildcard/absent headers
+        # remain compatible with existing simple device clients.
+        for coding in self.headers.get("Accept-Encoding", "").split(","):
+            parts = [part.strip().lower() for part in coding.split(";")]
+            if parts[0] != "gzip":
+                continue
+            quality = 1.0
+            for parameter in parts[1:]:
+                name, _, value = parameter.partition("=")
+                if name.strip() == "q":
+                    try:
+                        quality = float(value)
+                    except ValueError:
+                        quality = 0.0
+            if 0.0 < quality <= 1.0:
+                return True
+        return False
+
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
         if path not in ("/api/status", "/api/history"):
@@ -313,9 +380,15 @@ class FlightStatusHandler(BaseHTTPRequestHandler):
         content = self.state.history_snapshot() if path == "/api/history" else self.state.snapshot()
         payload = json.dumps(content, separators=(",", ":"),
                              allow_nan=path != "/api/history").encode()
+        compressed = self.accepts_gzip()
+        if compressed:
+            payload = gzip.compress(payload, compresslevel=1, mtime=0)
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Vary", "Accept-Encoding")
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
@@ -338,6 +411,11 @@ class FlightStatusHttp(Node):
         if not 0.0 <= deadband <= 1.0:
             raise ValueError("velocity_deadband_mps must be in [0, 1]")
         self.state = FlightStatusState(deadband)
+        for canonical, parameter in [('/mavros/state', 'mavros_state_topic'),
+                ('/mavros/extended_state', 'mavros_extended_state_topic'),
+                ('/mavros/local_position/velocity_body', 'mavros_body_velocity_topic'),
+                ('/landing/action/status', 'guided_status_topic')]:
+            self.state.extra.remap(canonical, str(self.get_parameter(parameter).value))
         FlightStatusHandler.state = self.state
         self.server = ThreadingHTTPServer(
             (
@@ -360,15 +438,19 @@ class FlightStatusHttp(Node):
         # Observe actual outgoing setpoints, not candidates or measured velocity.
         self.create_subscription(PositionTarget, "/mavros/setpoint_raw/local", self._command, qos_profile_sensor_data)
         self.create_subscription(PoseStamped, "/mavros/local_position/pose", self._pose, qos_profile_sensor_data)
+        self.create_subscription(Imu, "/mavros/imu/data", self._imu, qos_profile_sensor_data)
+        self.create_subscription(Float64, "/mavros/global_position/compass_hdg", self._heading, qos_profile_sensor_data)
         self.create_subscription(TwistStamped, "/mavros/local_position/velocity_local", self._local_velocity, qos_profile_sensor_data)
         self.create_subscription(Range, "/landing/sensor_range", self._rangefinder, qos_profile_sensor_data)
         self.create_subscription(RCIn, "/mavros/rc/in", self._rc, qos_profile_sensor_data)
         self.create_subscription(VfrHud, "/mavros/vfr_hud", self._vfr, qos_profile_sensor_data)
         self.create_subscription(BatteryState, "/mavros/battery", self._battery, qos_profile_sensor_data)
         self.create_subscription(Float64, "/mavros/global_position/rel_alt", self._relative_altitude, qos_profile_sensor_data)
+        self._extra_subscriptions = self.state.extra.subscribe(self)
         self.create_timer(1.0, self.state.record_history)
 
     def _battery(self, message: BatteryState) -> None:
+        self.state.extra.observe('/mavros/battery', message)
         voltage = finite_number(message.voltage)
         percentage = finite_number(message.percentage)
         present = bool(message.present)
@@ -380,11 +462,13 @@ class FlightStatusHttp(Node):
             self.state.battery_received_s = time.monotonic()
 
     def _relative_altitude(self, message: Float64) -> None:
+        self.state.extra.observe('/mavros/global_position/rel_alt', message)
         with self.state.lock:
             self.state.relative_altitude_m = finite_number(message.data)
             self.state.relative_altitude_received_s = time.monotonic()
 
     def _command(self, message: PositionTarget) -> None:
+        self.state.extra.observe('/mavros/setpoint_raw/local', message)
         with self.state.lock:
             self.state.command = {
                 "coordinate_frame": int(message.coordinate_frame),
@@ -394,7 +478,30 @@ class FlightStatusHttp(Node):
             }
             self.state.command_received_s = time.monotonic()
 
+    def _imu(self, message: Imu) -> None:
+        self.state.extra.observe('/mavros/imu/data', message)
+        q = message.orientation
+        orientation = (float(q.x), float(q.y), float(q.z), float(q.w))
+        values = {}
+        # ROS covariance[0] == -1 means that this measurement is unavailable.
+        for group, field in (("gyro", "angular_velocity"), ("accel", "linear_acceleration")):
+            valid = getattr(message, field + "_covariance")[0] != -1
+            for axis in "xyz":
+                values[f"{group}_{axis}"] = finite_number(getattr(getattr(message, field), axis)) if valid else None
+        with self.state.lock:
+            self.state.imu_quaternion = orientation if message.orientation_covariance[0] != -1 else None
+            self.state.imu_values = values
+            self.state.imu_received_s = time.monotonic()
+
+    def _heading(self, message: Float64) -> None:
+        self.state.extra.observe('/mavros/global_position/compass_hdg', message)
+        value = finite_number(message.data)
+        with self.state.lock:
+            self.state.heading_deg = value if value is not None and 0 <= value < 360 else None
+            self.state.heading_received_s = time.monotonic()
+
     def _pose(self, message: PoseStamped) -> None:
+        self.state.extra.observe('/mavros/local_position/pose', message)
         q = message.pose.orientation
         with self.state.lock:
             self.state.pose_quaternion = (float(q.x), float(q.y), float(q.z), float(q.w))
@@ -403,12 +510,14 @@ class FlightStatusHttp(Node):
             self.state.pose_received_s = time.monotonic()
 
     def _local_velocity(self, message: TwistStamped) -> None:
+        self.state.extra.observe('/mavros/local_position/velocity_local', message)
         z = float(message.twist.linear.z)
         with self.state.lock:
             self.state.local_vertical_speed_mps = z if math.isfinite(z) else None
             self.state.local_velocity_received_s = time.monotonic()
 
     def _rangefinder(self, message: Range) -> None:
+        self.state.extra.observe('/landing/sensor_range', message)
         value = float(message.range)
         lower, upper = float(message.min_range), float(message.max_range)
         valid = math.isfinite(value) and math.isfinite(lower) and math.isfinite(upper) and lower <= value <= upper
@@ -417,11 +526,13 @@ class FlightStatusHttp(Node):
             self.state.rangefinder_received_s = time.monotonic()
 
     def _rc(self, message: RCIn) -> None:
+        self.state.extra.observe('/mavros/rc/in', message)
         with self.state.lock:
             self.state.rc3_pwm = int(message.channels[2]) if len(message.channels) >= 3 else None
             self.state.rc_received_s = time.monotonic()
 
     def _vfr(self, message: VfrHud) -> None:
+        self.state.extra.observe('/mavros/vfr_hud', message)
         throttle, altitude = float(message.throttle), float(message.altitude)
         with self.state.lock:
             self.state.motor_throttle_pct = 100.0 * throttle if math.isfinite(throttle) and 0.0 <= throttle <= 1.0 else None
@@ -429,6 +540,7 @@ class FlightStatusHttp(Node):
             self.state.vfr_received_s = time.monotonic()
 
     def _vehicle(self, message: State) -> None:
+        self.state.extra.observe('/mavros/state', message)
         with self.state.lock:
             self.state.vehicle = {
                 "connected": bool(message.connected),
@@ -439,11 +551,13 @@ class FlightStatusHttp(Node):
             self.state.vehicle_received_s = time.monotonic()
 
     def _extended(self, message: ExtendedState) -> None:
+        self.state.extra.observe('/mavros/extended_state', message)
         with self.state.lock:
             self.state.extended_state = LANDED_STATES.get(int(message.landed_state), f"STATE_{int(message.landed_state)}")
             self.state.extended_received_s = time.monotonic()
 
     def _velocity(self, message: TwistStamped) -> None:
+        self.state.extra.observe('/mavros/local_position/velocity_body', message)
         with self.state.lock:
             self.state.velocity = {
                 "x": float(message.twist.linear.x),
@@ -454,6 +568,7 @@ class FlightStatusHttp(Node):
             self.state.velocity_received_s = time.monotonic()
 
     def _executor(self, message: String) -> None:
+        self.state.extra.observe('/landing/action/status', message)
         try:
             payload = json.loads(message.data)
         except (TypeError, ValueError, json.JSONDecodeError):

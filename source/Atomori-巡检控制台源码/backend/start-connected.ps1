@@ -1,4 +1,4 @@
-# 空地设备只读接口；支持参数或既有环境变量覆盖地址。
+﻿# 空地设备只读接口；支持参数或既有环境变量覆盖地址。
 param(
   [string]$CarUrl = $(if ($env:ATOMORI_CAR_URL) { $env:ATOMORI_CAR_URL } else { 'http://192.168.1.21:8765' }),
   [switch]$DisconnectCar = $true,

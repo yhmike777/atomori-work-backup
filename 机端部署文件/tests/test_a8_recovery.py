@@ -48,6 +48,7 @@ class Condition:
     def __exit__(self, *args): return False
     def wait_for(self, predicate, timeout): return predicate()
 class Camera:
+    session_id = 'test-session'
     cv = Condition()
     frames = 7
     jpeg = b'\xff\xd8fake-test-frame\xff\xd9'

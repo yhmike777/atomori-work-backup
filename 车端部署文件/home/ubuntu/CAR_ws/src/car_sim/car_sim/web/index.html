@@ -156,6 +156,188 @@
   .ls-sim-row { display:flex; justify-content:space-between; gap:16px; padding:7px 0; color:#93a1b7; font-size:13px; }
   .ls-sim-row + .ls-sim-row { border-top:1px solid #2d394c; }
 </style>
+<style id="atomori-responsive-control">
+/* Layout only: all original controls, events and telemetry bindings stay in place. */
+body {
+  padding: 18px;
+}
+
+header,
+#grid {
+  width: 100%;
+  max-width: none;
+}
+
+header {
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+/* Explicit columns prevent an empty third track before the full-width camera. */
+#grid {
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.card {
+  min-width: 0;
+  padding: 18px;
+}
+
+.row {
+  align-items: baseline;
+  gap: 10px 16px;
+  padding: 2px 0;
+  line-height: 1.45;
+}
+
+.atomori-status-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.atomori-status-group {
+  min-width: 0;
+}
+
+.atomori-status-group h2 {
+  margin-top: 0 !important;
+  letter-spacing: 1px;
+  line-height: 1.5;
+}
+
+.atomori-vehicle-status {
+  grid-row: span 2;
+}
+
+.atomori-gps-status {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 18px;
+  border-top: 1px solid #ffffff12;
+  padding-top: 16px;
+}
+
+.atomori-gps-status h2 {
+  grid-column: 1 / -1;
+}
+
+.atomori-gps-status .row {
+  border: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.atomori-gps-status .row span:last-child {
+  text-align: left;
+}
+
+.row + .row {
+  border-top: 1px solid #ffffff08;
+}
+
+.row span:first-child {
+  min-width: 0;
+  flex: 1 1 48%;
+}
+
+.row span:last-child {
+  min-width: 0;
+  flex: 0 1 52%;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.sensor-reading {
+  flex-wrap: nowrap;
+}
+
+#pad {
+  margin: 8px 0 20px;
+}
+
+.slider-row {
+  margin-top: 16px;
+}
+
+.hint {
+  line-height: 1.75;
+}
+
+#a2Card .a2-layout {
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 20px;
+}
+
+#a2Card .a2-video {
+  max-height: 520px;
+}
+
+#a2Card #camView {
+  max-height: 520px;
+}
+
+@media (max-width: 900px) {
+  #grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  #grid {
+    grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr);
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 12px;
+  }
+
+  #grid {
+    gap: 12px;
+  }
+
+  .card {
+    padding: 15px;
+  }
+
+  #a2Card .a2-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .row {
+    font-size: 13px;
+  }
+
+  .atomori-status-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .atomori-vehicle-status {
+    grid-row: auto;
+  }
+
+  .atomori-gps-status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .atomori-gps-status .row {
+    flex-direction: row;
+  }
+
+  .atomori-gps-status .row span:last-child {
+    text-align: right;
+  }
+}
+</style>
 </head>
 <body>
   <header>
@@ -198,7 +380,8 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card atomori-status-grid">
+      <section class="atomori-status-group atomori-vehicle-status">
       <h2>状态</h2>
       <div class="row"><span>连接</span><span id="conn" class="bad">断开</span></div>
       <div class="row"><span>位姿 x / y / yaw</span><span id="pose">-</span></div>
@@ -209,10 +392,14 @@
       <div class="row"><span>车尾超声波（Trig GPIO4 / Echo GPIO18）</span><span id="ultrasonic">-</span></div>
       <div class="row"><span>左侧超声波（Trig GPIO12 / Echo GPIO25）</span><span id="ultrasonicLeft">-</span></div>
       <div class="row"><span>右侧超声波（Trig 物理8/GPIO14 · Echo 物理10/GPIO15）</span><span id="ultrasonicRight">-</span></div>
+      </section>
+      <section class="atomori-status-group atomori-environment-status">
       <h2 style="margin-top:16px">环境温湿度 · DHT11（GPIO20）</h2>
       <div class="row"><span>温度</span><span id="envTemperature">—</span></div>
       <div class="row"><span>相对湿度</span><span id="envHumidity">—</span></div>
       <div class="cam-label" id="envState" role="status">等待传感器数据…</div>
+      </section>
+      <section class="atomori-status-group atomori-digital-status">
       <h2 style="margin-top:16px">环境感应开关</h2>
       <div class="row"><span>声音检测（GPIO6）</span><span id="soundValue">—</span></div>
       <div class="cam-label" id="soundState" role="status">等待数据…</div>
@@ -222,10 +409,13 @@
       <div class="cam-label" id="mq2State" role="status">等待数据…</div>
       <div class="row"><span>火焰检测（GPIO26）</span><span id="flameValue">—</span></div>
       <div class="cam-label" id="flameState" role="status">等待数据…</div>
+      </section>
+      <section class="atomori-status-group atomori-gps-status">
       <h2 style="margin-top:16px">GPS 定位</h2>
       <div class="row"><span>定位状态</span><span id="gpsStatus">-</span></div>
       <div class="row"><span>纬度 / 经度</span><span id="gpsPos">-</span></div>
       <div class="row"><span>海拔</span><span id="gpsAlt">-</span></div>
+      </section>
     </div>
 
     <div class="card" id="a2Card">

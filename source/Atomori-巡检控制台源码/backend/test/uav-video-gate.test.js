@@ -17,7 +17,8 @@ function setup() {
     return nodes.get(id);
   };
   const context = {
-    get, latestVision: {}, config: { carConfigured: true, uavVisionConfigured: true, liveOnly: true },
+    AtomoriContinuity: { video: () => ({ hasFrame: false, start() {}, hold() {}, clear() {}, dispose() {} }) },
+    optionalText() {}, get, latestVision: {}, config: { carConfigured: true, uavVisionConfigured: true, liveOnly: true },
     document: { querySelector(selector) { return selector.startsWith('[data-camera-tab]')
       ? { dataset: { cameraTab: selected } } : get('clock-label'); } },
     crypto: { randomUUID: () => `stream-${++streamId}` },
@@ -71,4 +72,22 @@ test('A8视频及其既有重连不依赖OV9281视觉状态', () => {
   assert.match(view.get('main-camera').src, /\/a8\.mjpg\?clientId=/);
   assert.notEqual(view.get('main-camera').src, first);
   assert.equal(view.state().liveConnection.cameraId, 'a8.mjpg');
+});
+
+test('A8持续收到字节但完整帧停更仍重连，首次连接保留启动窗口', async () => {
+  let health = { active: true, idleAgeMs: 0, frameReceivedAtMs: 1000 }, retries = 0;
+  const nodes = new Map();
+  const get = id => { if (!nodes.has(id)) nodes.set(id, {}); return nodes.get(id); };
+  const context = vm.createContext({ Date: { now: () => 5000 }, get, retryTimer: null,
+    liveConnection: { cameraId: 'a8.mjpg', clientId: 'a8-test', startedAt: 4000 },
+    updateCameraClock() {}, retryLiveCamera() { retries++; },
+    AtomoriApi: { request: async () => ({ data: { timingCalibration: {}, streamHealth: [{ ...health, clientId: 'a8-test', cameraId: 'a8.mjpg' }] } }) }
+  });
+  const monitor = source.slice(source.indexOf('  async function monitorCamera()'), source.indexOf("  if (config.uavVisionConfigured) document.querySelector"));
+  vm.runInContext(monitor, context);
+  await vm.runInContext('monitorCamera()', context);
+  assert.equal(retries, 1);
+  health = { active: true, idleAgeMs: 0 };
+  await vm.runInContext('monitorCamera()', context);
+  assert.equal(retries, 1, '尚无首帧时不以3秒打断冷启动');
 });

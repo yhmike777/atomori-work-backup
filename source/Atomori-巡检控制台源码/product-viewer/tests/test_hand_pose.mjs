@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { inspectHand, inspectTwoHands } from '../gesture/hand-pose.js';
+import { SingleHandGestures } from '../gesture/gesture-gate.js';
 
 const category=(name,score=.99)=>[{categoryName:name,score}];
 function hand(label='Left', {back=false,down=false,fist=false,aspect=4/3}={}) {
@@ -50,6 +51,16 @@ const narrow=hand();narrow.forEach(point=>point.x=.5+(point.x-.5)*.1);assert.equ
 const badScore=result();badScore.gestures[1]=category('Open_Palm',NaN);assert.equal(inspectTwoHands(badScore,4/3).eligible,false);
 assert.equal(inspectHand(null,[],'Open_Palm').upright,false);
 const invalid=hand();invalid[8].x=NaN;assert.equal(inspectHand(invalid,category('Left'),'Open_Palm').upright,false);
+assert.equal(inspectHand(invalid,category('Left'),'Open_Palm').tracked,false);
+assert.equal(inspectHand(Array.from({length:21},()=>({x:.5,y:.5,z:0})),category('Left'),'Open_Palm').tracked,false,'degenerate landmarks are not a tracked hand');
+for(const points of [sideways,hand('Left',{down:true}),partlyOpen.landmarks[0]]) {
+  const pose=inspectHand(points,category('Left'),'Open_Palm',4/3);
+  assert.equal(pose.tracked,true);assert.equal(pose.upright,false,'rotation still requires an upright palm');
+  const gestures=new SingleHandGestures();
+  gestures.update('Closed_Fist',.5,1,true,0);gestures.update('Closed_Fist',.5,1,true,120);
+  gestures.update('Open_Palm',.5,1,pose.tracked,180);
+  assert.equal(gestures.update('Open_Palm',.5,1,pose.tracked,300).change,1,'a tracked non-upright palm can complete fist-to-open');
+}
 assert.equal(inspectTwoHands({landmarks:[hand()]},4/3).eligible,false);
 assert.equal(inspectTwoHands({landmarks:[hand(),hand()]},4/3).eligible,false);
 console.log('PASS hand pose: left/right front/back, upright/downward palms and fists, edge-on, confidence, pair identity and invalid input');

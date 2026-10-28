@@ -15,6 +15,14 @@
   const ugvBattery = AtomoriUgvBattery.create();
   const ugvMetricDisplay = AtomoriUgvView.createMetricDisplay();
   let stopped = false;
+  const readings = AtomoriContinuity.createReadings();
+  let retainedRelative = null, retainedLocation = null, retainedMode = null;
+  const flightReading = key => {
+    const elapsed = Math.max(0, (performance.now() - uavReceivedAt) / 1000);
+    const item = latestFlight.metrics?.[key];
+    const connected = latestFlight.connected === true && fresh(latestFlight.stateAgeS + elapsed);
+    return readings(`uav:${latestFlight.displayIdentity || flightSource()}:${key}`, item ? { ...item, valid: item.valid && connected } : null, elapsed);
+  };
   function renderAttitude(roll = null, pitch = null) {
     const block = document.querySelector('.attitude-block');
     const valid = Number.isFinite(roll) && Number.isFinite(pitch);
@@ -27,7 +35,7 @@
     block.querySelector('svg').setAttribute('aria-label', valid
       ? `无人机姿态：横滚 ${roll.toFixed(1)} 度，俯仰 ${pitch.toFixed(1)} 度`
       : '无人机姿态数据不可用，仪表为静态参考底图');
-    block.title = '飞控融合姿态；横滚正值为向右倾斜，俯仰正值为抬头；样本过期或断连时读数清空，仪表显示静态参考底图。';
+    block.title = '飞控融合姿态；横滚正值为向右倾斜，俯仰正值为抬头。弱网保留最近有效姿态，实时性以链路和采样状态为准。';
   }
   const pollingTimers = new Set();
   const referenceMapUrl = document.body.dataset.carMapImage || '';
@@ -37,15 +45,11 @@
   const heightNumber = value => Number.isFinite(value) ? value.toFixed(2) + ' m' : '未上报';
   const diagnosticFlightValue = (key, value) => {
     if (flightSource() === 'mission-planner' && key === 'rangefinder') return null;
-    const elapsed = (performance.now() - uavReceivedAt) / 1000;
-    const item = latestFlight.metrics?.[key];
-    const age = Number.isFinite(item?.ageS) ? item.ageS : item?.ageBasis === 'upstream_bridge_validity_gate' ? latestFlight.stateAgeS : null;
-    return latestFlight.connected === true && Number.isFinite(latestFlight.stateAgeS) && latestFlight.stateAgeS >= 0 && latestFlight.stateAgeS + elapsed <= 2
-      && item?.valid === true && Number.isFinite(age) && age >= 0 && age + elapsed <= item.maxAgeS ? value : null;
+    return flightReading(key).value;
   };
   const heightDiagnostic = () => flightSource() === 'mission-planner'
     ? `<p>离地高度：未上报。下视传感器距离：未上报。</p><p>飞控 home 高度估计：<span data-flight-diagnostic="relativeAltitude">${heightNumber(diagnosticFlightValue('relativeAltitude', latestFlight.metrics?.relativeAltitude?.value))}</span>（基准未核验，不作为离地高度）。</p><p class="dialog-muted">Mission Planner 转发的测距方向尚未确认，不能作为下视距离或离地高度。</p>`
-    : `<p>离地高度：<span data-flight-diagnostic="rangefinder">${heightNumber(diagnosticFlightValue('rangefinder', latestFlight.rangefinderM))}</span>（采用实时下视测距，以传感器为测量基准）。</p><p>下视传感器距离：<span data-flight-diagnostic="rangefinder">${heightNumber(diagnosticFlightValue('rangefinder', latestFlight.rangefinderM))}</span>（传感器到所测表面的距离）。</p><p>飞控 home 高度估计：<span data-flight-diagnostic="relativeAltitude">${heightNumber(diagnosticFlightValue('relativeAltitude', latestFlight.relativeAltitudeM))}</span>（基准未核验，不作为离地高度）。</p><p class="dialog-muted">离地高度采用有效的 /landing/sensor_range；尚未补偿传感器安装偏移或机体倾斜。测距无效或过期时显示 —，不使用 home 估计或相机到标签的距离替代。</p>`;
+    : `<p>离地高度：<span data-flight-diagnostic="rangefinder">${heightNumber(diagnosticFlightValue('rangefinder', latestFlight.rangefinderM))}</span>（采用实时下视测距，以传感器为测量基准）。</p><p>下视传感器距离：<span data-flight-diagnostic="rangefinder">${heightNumber(diagnosticFlightValue('rangefinder', latestFlight.rangefinderM))}</span>（传感器到所测表面的距离）。</p><p>飞控 home 高度估计：<span data-flight-diagnostic="relativeAltitude">${heightNumber(diagnosticFlightValue('relativeAltitude', latestFlight.relativeAltitudeM))}</span>（基准未核验，不作为离地高度）。</p><p class="dialog-muted">离地高度采用有效的 /landing/sensor_range；尚未补偿传感器安装偏移或机体倾斜。测距暂时中断时保留最近有效读数，未曾收到时显示 —，不使用 home 估计或相机到标签的距离替代。</p>`;
   let config;
   const flightSource = () => Object.hasOwn(config || {}, 'uavFlightSource')
     ? ['mission-planner', 'raspberry-pi'].includes(config.uavFlightSource) ? config.uavFlightSource : null
@@ -115,19 +119,28 @@
     action();
   }, true);
   intercept(document.querySelector('[data-nav="devices"]'), () => {
-    openDialog('设备数据接入', `<p>车端网关：${config.carConfigured ? '已配置，状态以遥测为准' : '未配置'}</p><div id="ugv-live-details"></div><p>机载视觉服务：${config.uavVisionConfigured ? '已配置，状态以遥测为准' : '未配置'}</p><p>飞控遥测来源：${flightSource() === 'mission-planner' ? 'Mission Planner 转发' : flightSource() === 'raspberry-pi' ? '树莓派只读状态桥' : config.uavVisionConfigured ? '视觉服务内嵌快照' : '未配置'}，状态以有效心跳为准。</p>${heightDiagnostic()}<p class="dialog-muted">电池、测距未上报或过期时显示 —。控制指令未开放。</p>`);
+    openDialog('设备数据接入', `<p>车端网关：${config.carConfigured ? '已配置，状态以遥测为准' : '未配置'}</p><div id="ugv-live-details"></div><p>机载视觉服务：${config.uavVisionConfigured ? '已配置，状态以遥测为准' : '未配置'}</p><p>飞控遥测来源：${flightSource() === 'mission-planner' ? 'Mission Planner 转发' : flightSource() === 'raspberry-pi' ? '树莓派只读状态桥' : config.uavVisionConfigured ? '视觉服务内嵌快照' : '未配置'}，状态以有效心跳为准。</p>${heightDiagnostic()}<p class="dialog-muted">电池、测距弱网时保留最近有效读数，未曾收到时显示 —。控制指令未开放。</p>`);
     renderUgv();
   });
   intercept(document.querySelector('.business-nav [data-business="mapping"]'), () => location.assign('corridor-overview.html?view=2d'));
 
   const metric = (panel, number) => document.querySelector(`.${panel}-panel .metric-grid .metric:nth-child(${number}) strong`);
   const display = (value, digits, unit) => Number.isFinite(value) ? `${value.toFixed(digits)} <small>${unit}</small>` : '—';
-  const show = (element, value, digits, unit) => { if (element) element.innerHTML = display(value, digits, unit); };
+  const show = (element, value, digits, unit) => {
+    const html = display(value, digits, unit);
+    if (element && element.innerHTML !== html) element.innerHTML = html;
+  };
   const fresh = age => Number.isFinite(age) && age >= 0 && age <= 2;
   const explainMetric = (element, item) => {
     if(!element)return;
     element.title = item ? `${item.source} · ${item.unit} · ${item.valid ? '有效上报' : item.reason} · 数据年龄 ${Number.isFinite(item.ageS) ? item.ageS.toFixed(2)+' s' : '未提供'}` : '上游尚未提供此测量字段';
   };
+
+  function explainFlightMetric(element, key) {
+    const reading = flightReading(key), original = latestFlight.metrics?.[key];
+    explainMetric(element, original || reading.value !== null ? { ...original, ...reading,
+      reason: reading.retained ? '最近有效读数，等待更新' : original?.reason } : null);
+  }
 
   function applyLiveOnlyLabels() {
     if (!config.liveOnly) return;
@@ -167,15 +180,18 @@
   function renderRelativePosition() {
     const panel = document.querySelector('.relative-position');
     if (!panel) return;
-    const relative = latestVision.relativePose;
+    let relative = latestVision.relativePose;
     const ageS = Number.isFinite(relative?.ageS) ? relative.ageS + (performance.now() - visionReceivedAt) / 1000 : null;
     const valid = relative?.valid === true && relative.frame === 'BODY_FRD'
       && [relative.xM, relative.yM, relative.zM].every(Number.isFinite)
       && Number.isFinite(ageS) && ageS >= 0 && ageS <= relative.maxAgeS;
+    if (valid) { retainedRelative = { ...relative }; }
+    const displayed = valid || retainedRelative !== null;
+    if (!valid && retainedRelative) relative = retainedRelative;
     const signed = (value, digits, unit) => `${value > 0 ? '+' : ''}${value.toFixed(digits)} <small>${unit}</small>`;
     const entries = [['relative-x', 'xM', 3, 'm'], ['relative-y', 'yM', 3, 'm'], ['relative-z', 'zM', 3, 'm'], ['relative-yaw', 'yawDeg', 1, '°']];
     for (const [id, key, digits, unit] of entries) {
-      get(id).innerHTML = valid && Number.isFinite(relative[key]) ? signed(relative[key], digits, unit) : '—';
+      get(id).innerHTML = displayed && Number.isFinite(relative[key]) ? signed(relative[key], digits, unit) : '—';
     }
     const state = get('vision-state');
     state.textContent = !config.uavVisionConfigured ? '机载未连接' : valid ? `视觉定位 · Tag ${relative.tagId ?? '—'}`
@@ -183,6 +199,7 @@
       : relative?.reason === 'QUALITY_REJECTED' ? '视觉质量未通过'
       : relative?.reason === 'STALE_OR_UNKNOWN_AGE' || relative?.valid ? '视觉数据过期'
       : relative?.reason === 'INVALID_POSE' ? '相对位姿无效' : '视觉离线';
+    if (!valid && retainedRelative) state.textContent += ' · 最近位置';
     state.classList.toggle('amber', !valid);
     get('relative-x').title = '着陆标签相对无人机机体的位置，BODY_FRD：X 向前为正';
     get('relative-y').title = '着陆标签相对无人机机体的位置，BODY_FRD：Y 向右为正';
@@ -191,17 +208,18 @@
     panel.querySelector('p').textContent = valid ? `BODY_FRD · 标签相对机体 · ${ageS.toFixed(2)} s 前` : state.textContent;
     panel.title = `机载视觉估计，采用树莓派相机外参和标签标定；精度尚未现场核验。${relative?.rangeCorrectionStatus ? ' 距离标定：' + relative.rangeCorrectionStatus : ''}`;
     const marker = get('relative-drone'), vector = get('relative-vector');
-    marker.style.visibility = vector.style.visibility = valid ? 'visible' : 'hidden';
-    if (valid) {
+    marker.style.visibility = vector.style.visibility = displayed ? 'visible' : 'hidden';
+    if (displayed) {
       const scale = 27 / Math.max(1, Math.hypot(relative.xM, relative.yM));
       const x = 43 + relative.yM * scale, y = 40 - relative.xM * scale;
       marker.setAttribute('cx', x); marker.setAttribute('cy', y);
       vector.setAttribute('d', `M43 40 ${x} ${y}`);
     }
-    document.dispatchEvent(new CustomEvent('atomori:relative', { detail: { valid, horizontal: valid ? Math.hypot(relative.xM, relative.yM) : null } }));
+    document.dispatchEvent(new CustomEvent('atomori:relative', { detail: { valid, retained: displayed && !valid, horizontal: displayed ? Math.hypot(relative.xM, relative.yM) : null } }));
   }
 
   function applyUgv(data, requestedAt = performance.now()) {
+    if (data?.sourceIdentity && latestUgv.sourceIdentity && data.sourceIdentity !== latestUgv.sourceIdentity) retainedLocation = null;
     latestUgv = data || {};
     // The localhost adapter stamps receivedAt after sampling. Browser connection-pool
     // queueing happens BEFORE that sample and must not prematurely expire it.
@@ -226,8 +244,9 @@
     const odomFresh = fresh(ugvAge(data.odom?.ageS));
     const batteryEstimate = ugvBattery.update({ fresh: config.carConfigured && snapshotFresh,
       sampleId: data.receivedAt || null, sampleAtMs: Date.parse(data.receivedAt), uptimeS: data.gateway?.uptime_s, nowMs: Date.now() });
-    show(metric('ugv', 1), batteryEstimate.percent, 0, '%');
-    metric('ugv', 1).title = batteryEstimate.title;
+    const batteryDisplay = readings(`ugv:${data.sourceIdentity || data.source || 'car'}:batteryEstimate`, { value: batteryEstimate.percent, valid: Number.isFinite(batteryEstimate.percent), ageS: 0, maxAgeS: 1 });
+    show(metric('ugv', 1), batteryDisplay.value, 0, '%');
+    metric('ugv', 1).title = (batteryDisplay.retained ? '最近电量估算，等待车端恢复；' : '') + batteryEstimate.title;
     for (const [index, key, digits, unit] of [[2, 'speed', 2, 'm/s'], [3, 'temperature', 1, '°C'], [4, 'humidity', 0, '%RH']]) {
       const item = data.metrics?.[key];
       const element = metric('ugv', index);
@@ -235,7 +254,6 @@
       show(element, reading.value, digits, unit);
       explainMetric(element, item ? { ...item, ageS: ugvAge(item.ageS), valid: Number.isFinite(ugvValue(item)), reason: item.valid && !Number.isFinite(ugvValue(item)) ? '页面缓存已过期' : item.reason } : null);
       if (reading.retained) {
-        element.innerHTML += `<small class="metric-sample-note">上次有效 · ${Math.ceil(reading.ageS)} 秒前</small>`;
         element.title = `上次有效读数，非当前测量；${reading.ageS.toFixed(1)} 秒前。${element.title}`;
       }
     }
@@ -246,37 +264,26 @@
     get('rover-state').classList.toggle('amber', !Number.isFinite(speed) || emergency);
     const updated = data.observedAt ? new Date(data.observedAt) : null;
     const time = updated && Number.isFinite(updated.getTime()) ? updated.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '时间未提供';
-    document.querySelector('.ugv-panel .telemetry-heading small').textContent = Number.isFinite(speed) ? time : '数据不可用';
+    document.querySelector('.ugv-panel .telemetry-heading small').textContent = snapshotFresh ? time + ' · 弱网保留读数' : '连接中断 · 保留最近数据';
     document.querySelector('.ugv-panel .telemetry-heading small').title = '车端状态快照时间；各传感器独立检查样本年龄';
-    const localized = data.localization?.active === true && data.localization?.state === 'localized' && fresh(ugvAge(data.localization?.age_s));
-    const location = localized ? data.localization.map_pose : odomFresh ? data.odom.pose : null;
+    const localized = snapshotFresh && data.localization?.active === true && data.localization?.state === 'localized' && fresh(ugvAge(data.localization?.age_s));
+    if (localized || odomFresh) retainedLocation = localized ? data.localization.map_pose : data.odom.pose;
+    const location = retainedLocation;
     document.querySelector('.link-topology').textContent = `${localized ? '地图' : '里程计'} · ${positionText(location)}`;
     document.querySelector('.link-topology').title = '车端原始坐标；地图未叠加车辆标记，点击车辆详情查看更多数据';
-    document.dispatchEvent(new CustomEvent('atomori:ugv', { detail: { online: config.carConfigured && snapshotFresh, localized, battery: batteryEstimate.percent } }));
+    document.dispatchEvent(new CustomEvent('atomori:ugv', { detail: { online: config.carConfigured && snapshotFresh, localized, battery: batteryDisplay.value } }));
+    const sensorReaders = { mq2: AtomoriUgvView.smokeState, flame: AtomoriUgvView.flameState, co: AtomoriUgvView.coState, sound: AtomoriUgvView.soundState };
+    let retainedSensors = false;
     document.querySelectorAll('.environment-grid button').forEach((button, index) => {
-      const [key, label] = [['sound', '声音'], ['flame', '火焰'], ['mq2', '气体检测']][index];
+      const [key, label] = [['mq2', '烟雾检测'], ['flame', '火焰'], ['co', '一氧化碳'], ['sound', '声音检测']][index];
       button.querySelector('span').textContent = label;
-      if (key === 'sound') {
-        const sound = AtomoriUgvView.soundState(config.carConfigured ? data : {}, elapsed);
-        button.querySelector('b').textContent = sound.text;
-        button.querySelector('b').style.color = sound.color;
-        button.title = sound.title;
-        return;
-      }
-      const sensor = data.environment?.digital?.[key];
-      const valid = config.carConfigured && sensor?.valid === true
-        && typeof sensor.triggered === 'boolean' && fresh(ugvAge(sensor.ageS));
-      const gas = key === 'mq2';
-      button.querySelector('b').textContent = valid
-        ? gas ? sensor.triggered ? '危险' : '正常' : sensor.triggered ? '触发' : '未触发'
-        : '—';
-      button.querySelector('b').style.color = gas
-        ? valid ? sensor.triggered ? 'var(--red)' : 'var(--green)' : 'var(--muted)'
-        : valid && sensor.triggered ? 'var(--amber)' : '';
-      button.title = gas
-        ? '气体检测依据 MQ2 数字报警信号：触发显示危险，未触发显示正常；不代表气体种类或浓度。离线、过期或未上报显示 —'
-        : '数字传感器开关量，不代表气体浓度；过期或未上报显示 —';
+      const reading = sensorReaders[key](config.carConfigured ? data : {}, elapsed);
+      button.querySelector('b').textContent = reading.text;
+      button.querySelector('b').style.color = reading.color;
+      button.title = reading.title;
+      retainedSensors ||= reading.retained;
     });
+    optionalText('.sensor-heading', retainedSensors ? '传感器状态 · 最近数据' : '传感器状态');
     document.dispatchEvent(new CustomEvent('atomori:sensors'));
     const details = get('ugv-live-details');
     if (details && get('action-dialog').open) AtomoriUgvView.renderDetails(details, data, latestUgvDetails, elapsed, detailsElapsed);
@@ -291,9 +298,10 @@
   function applyUav(data, requestedAt = performance.now()) {
     // The adapter has already included its request/wait duration in every sample.
     // Add only browser transit, and never replace the other independent source.
-    const adapterElapsed = data.ageIncludes === 'device-http-and-response-wait' && Number.isFinite(data.snapshotAgeS) && data.snapshotAgeS >= 0 ? data.snapshotAgeS * 1000 : 0;
-    const sampleReceivedAt = Math.min(performance.now(), requestedAt + adapterElapsed);
-    if (Object.hasOwn(data, 'flight')) { latestFlight = data.flight || {}; uavReceivedAt = sampleReceivedAt; }
+    const sampleReceivedAt = AtomoriApi.sampleTime(data, requestedAt);
+    if (Object.hasOwn(data, 'flight')) {
+      if (data.sourceIdentity && latestFlight.displayIdentity && data.sourceIdentity !== latestFlight.displayIdentity) retainedMode = null;
+      latestFlight = { ...(data.flight || {}), displayIdentity: data.sourceIdentity || data.source || null }; uavReceivedAt = sampleReceivedAt; }
     if (Object.hasOwn(data, 'vision')) { latestVision = data.vision || {}; visionReceivedAt = sampleReceivedAt; }
     renderUav();
   }
@@ -305,32 +313,32 @@
       node.textContent = heightNumber(diagnosticFlightValue(key, key === 'rangefinder' ? flight.rangefinderM : flightSource() === 'mission-planner' ? flight.metrics?.relativeAltitude?.value : flight.relativeAltitudeM));
     });
     const elapsed = (performance.now() - uavReceivedAt) / 1000;
-    const metricValue = (key, value) => {
-      const item = flight.metrics?.[key];
-      const age = Number.isFinite(item?.ageS) ? item.ageS : item?.ageBasis === 'upstream_bridge_validity_gate' ? flight.stateAgeS : null;
-      return item?.valid === true && Number.isFinite(age) && age >= 0 && age + elapsed <= item.maxAgeS ? value : null;
-    };
+    const metricValue = key => flightReading(key).value;
     renderRelativePosition();
     const valid = flight.connected === true && fresh(Number.isFinite(flight.stateAgeS) ? flight.stateAgeS + elapsed : null);
-    const roll = valid ? metricValue('roll', flight.rollDeg) : null;
-    const pitch = valid ? metricValue('pitch', flight.pitchDeg) : null;
+    const roll = metricValue('roll');
+    const pitch = metricValue('pitch');
     renderAttitude(roll, pitch);
-    explainMetric(get('uav-roll'), flight.metrics?.roll);
-    explainMetric(get('uav-pitch'), flight.metrics?.pitch);
-    show(metric('uav', 1), valid ? metricValue('batteryPercent', flight.batteryPercent) : null, 0, '%');
-    show(get('uav-voltage'), valid ? metricValue('batteryVoltage', flight.batteryVoltage) : null, 2, 'V');
-    const downwardRange = valid && flightSource() !== 'mission-planner' ? metricValue('rangefinder', flight.rangefinderM) : null;
+    const retainedAttitude = flightReading('roll').retained || flightReading('pitch').retained;
+    get('attitude-status').hidden = !retainedAttitude && Number.isFinite(roll) && Number.isFinite(pitch);
+    get('attitude-status').textContent = retainedAttitude ? '最近姿态' : '姿态不可用';
+    explainFlightMetric(get('uav-roll'), 'roll');
+    explainFlightMetric(get('uav-pitch'), 'pitch');
+    show(metric('uav', 1), metricValue('batteryPercent'), 0, '%');
+    show(get('uav-voltage'), metricValue('batteryVoltage'), 2, 'V');
+    const downwardRange = flightSource() !== 'mission-planner' ? metricValue('rangefinder') : null;
     show(get('range-value'), downwardRange, 2, 'm');
-    for(const [element,key] of [[metric('uav',1),'batteryPercent'],[get('uav-voltage'),'batteryVoltage'],[get('range-value'),'rangefinder']])explainMetric(element,flight.metrics?.[key]);
+    for(const [element,key] of [[metric('uav',1),'batteryPercent'],[get('uav-voltage'),'batteryVoltage'],[get('range-value'),'rangefinder']])explainFlightMetric(element,key);
     const height = get('uav-height');
     height.parentElement.querySelector('span').textContent='离地高度';
     show(height, downwardRange, 2, 'm');
-    explainMetric(height, flight.metrics?.rangefinder);
+    explainFlightMetric(height, 'rangefinder');
     height.title += ' · 实时下视测距，以传感器为基准；未补偿安装偏移与机体倾斜';
     if (flightSource() === 'mission-planner') height.title = get('range-value').title = 'Mission Planner 测距方向未确认，尚无可用的下视距离或离地高度';
-    get('drone-state').textContent = !config.uavVisionConfigured && !independentFlight() ? '飞控未连接' : valid ? `${flight.mode} · ${flight.armed ? '已解锁' : '未解锁'}` : '飞控离线/过期';
-    document.querySelector('.uav-panel .telemetry-heading small').textContent = valid ? flightSource() === 'mission-planner' ? 'Mission Planner' : '飞控数据' : '数据过期';
-    document.dispatchEvent(new CustomEvent('atomori:uav', { detail: { online: valid, battery: valid ? metricValue('batteryPercent', flight.batteryPercent) : null } }));
+    if (valid) retainedMode = `${flight.mode} · ${flight.armed ? '已解锁' : '未解锁'}`;
+    get('drone-state').textContent = !config.uavVisionConfigured && !independentFlight() ? '飞控未连接' : valid ? `${flight.mode} · ${flight.armed ? '已解锁' : '未解锁'}` : `重连中${retainedMode ? ' · 最近：' + retainedMode : ''}`;
+    document.querySelector('.uav-panel .telemetry-heading small').textContent = valid ? retainedAttitude ? '弱网 · 保留最近读数' : '持续更新 · 弱网保留读数' : '连接中断 · 保留最近数据';
+    document.dispatchEvent(new CustomEvent('atomori:uav', { detail: { online: valid, battery: metricValue('batteryPercent') } }));
   }
 
   function schedule(action, delay) {
@@ -351,6 +359,8 @@
   const groundNames = { front: '前视', rear: '后视', top: '俯视' };
   let setGroundMode = () => {};
   const groundCamera = get('ground-camera');
+  const groundFrames = AtomoriContinuity.video(groundCamera, 'ugv-expanded-camera');
+  groundFrames.start(groundCameraId);
   groundCamera.removeAttribute('src');
   groundCamera.style.visibility = 'hidden';
   document.querySelector('.ground-feed .feed-quality').textContent = config.carConfigured ? '等待车端画面' : '车端未配置';
@@ -360,6 +370,7 @@
   const groundVisible = () => !stopped && !document.hidden && !document.querySelector('.ground-feed').classList.contains('show-car-map');
   const groundStreamUrl = clientId => `/api/v1/devices/UGV-01/cameras/front.mjpg?clientId=${clientId}`;
   function stopGroundStream() {
+    groundFrames.hold();
     groundEpoch += 1;
     groundStream = null;
     groundRequest?.abort(); groundRequest = null;
@@ -367,15 +378,16 @@
     groundCamera.removeAttribute('src');
     get('ugv-expanded-camera')?.removeAttribute('src');
   }
-  function clearGroundFrame(reason) {
+  function clearGroundFrame(reason, discard = false) {
     stopGroundStream();
+    if (discard) groundFrames.clear();
     groundCamera.style.visibility = 'hidden'; groundCamera.removeAttribute('src');
     get('ugv-expanded-camera')?.removeAttribute('src');
     if (groundObjectUrl) URL.revokeObjectURL(groundObjectUrl);
     groundObjectUrl = null; groundFrameAt = 0; groundFrameAgeS = null;
-    document.querySelector('.ground-feed .feed-label').textContent = `车端${groundNames[groundCameraId]} · 暂无画面`;
-    document.querySelector('.ground-feed .feed-quality').textContent = '无有效实时帧';
-    document.querySelector('.ground-feed .feed-bottom').textContent = reason;
+    document.querySelector('.ground-feed .feed-label').textContent = `车端${groundNames[groundCameraId]} · ${groundFrames.hasFrame ? '最近画面' : '暂无画面'}`;
+    document.querySelector('.ground-feed .feed-quality').textContent = groundFrames.hasFrame ? '重连中 · 保留画面' : '等待有效帧';
+    document.querySelector('.ground-feed .feed-bottom').textContent = reason + (groundFrames.hasFrame ? ' · 显示最近完整帧' : '');
     if (get('ugv-camera-status')) get('ugv-camera-status').textContent = reason;
   }
   function renderGroundFreshness() {
@@ -384,14 +396,14 @@
       if (!groundVisible()) { if (groundStream) clearGroundFrame('图传已暂停'); return; }
       // The car's MJPEG endpoint emits new frames only. Once verified, incoming
       // bytes establish video liveness independently of a delayed telemetry poll.
-      if (!status.valid && groundStream?.lastDataAt == null) { clearGroundFrame(status.reason); return; }
+      if (!status.valid && !groundFrames.hasFrame && groundStream?.lastDataAt == null) { clearGroundFrame(status.reason); return; }
       if (!groundStream) return;
       const silenceS = (performance.now() - (groundStream.lastDataAt ?? groundStream.startedAt)) / 1000;
       if (silenceS > (groundStream.lastDataAt === null ? 8 : 3)) {
         groundRetryAt = performance.now() + 1000; clearGroundFrame('视频中断，正在重连'); return;
       }
       if (groundStream.lastDataAt !== null) {
-        const label = status.valid ? `设备帧龄 ≤ ${status.ageS.toFixed(1)} s · 连续视频` : '连续接收车端新画面';
+        const label = status.valid ? `设备帧龄 ≤ ${status.ageS.toFixed(1)} s · 连续视频` : '正在接收车端视频数据';
         document.querySelector('.ground-feed .feed-bottom').textContent = label;
         if (get('ugv-camera-status')) get('ugv-camera-status').textContent = label;
       }
@@ -414,23 +426,25 @@
     groundCameraId = selected;
     groundRetryAt = 0;
     get('ground-camera-select').value = selected;
-    clearGroundFrame('等待有效实时帧');
+    clearGroundFrame('等待有效实时帧', true);
+    groundFrames.start(groundCameraId);
     setGroundMode(false);
     void refreshGroundCamera();
   }
   async function refreshGroundCamera() {
     if (!groundVisible() || groundBusy || !config.carConfigured) return;
     if (groundCameraId === 'front') {
-      if ((!groundStream && !groundStatus().valid) || performance.now() < groundRetryAt) return;
+      if ((!groundStream && !groundStatus().valid && !groundFrames.hasFrame) || performance.now() < groundRetryAt) return;
       if (!groundStream) {
         const clientId = `ugv-front-${crypto.randomUUID()}`;
         groundStream = { clientId, startedAt: performance.now(), lastDataAt: null, checkedAt: -Infinity, bytes: 0 };
         groundCamera.src = groundStreamUrl(clientId);
+        groundFrames.start(groundCameraId);
         groundCamera.alt = '车端前视连续视频'; groundCamera.style.visibility = 'visible';
         document.querySelector('.ground-feed .feed-label').textContent = '车端前视 · 实时图传';
         document.querySelector('.ground-feed .feed-quality').textContent = '连接视频中…';
         const expanded = get('ugv-expanded-camera');
-        if (expanded && get('action-dialog').open) expanded.src = groundStreamUrl(`ugv-expanded-${crypto.randomUUID()}`);
+        // Enlarged view mirrors the retained canvas; never open a duplicate H100 stream.
       }
       const connection = groundStream;
       if (performance.now() - connection.checkedAt < 1000) return;
@@ -474,6 +488,7 @@
       const previousUrl = groundObjectUrl;
       groundObjectUrl = candidateUrl; candidateUrl = null;
       groundCamera.src = groundObjectUrl;
+      groundFrames.start(groundCameraId);
       groundCamera.alt = `车端${groundNames[selected]}当前画面`;
       groundCamera.style.visibility = 'visible';
       groundFrameAt = started; groundFrameAgeS = status.ageS;
@@ -516,7 +531,7 @@
     tabs.append(mapButton);
     const cameraSelect = document.createElement('select');
     cameraSelect.id = 'ground-camera-select'; cameraSelect.setAttribute('aria-label', '地面图传相机');
-    for (const [id, name] of Object.entries(groundNames)) {
+    for (const [id, name] of Object.entries(groundNames).filter(([id]) => id === 'front')) {
       const option = document.createElement('option'); option.value = id; option.textContent = name; cameraSelect.append(option);
     }
     cameraSelect.disabled = !config.carConfigured;
@@ -553,9 +568,8 @@
         void refreshMap();
         return;
       }
-      openDialog(`UGV ${groundNames[groundCameraId]} · 实时画面`, '<img id="ugv-expanded-camera" alt="车端当前帧"><p id="ugv-camera-status" class="dialog-muted">相机无有效新鲜帧时清空画面。</p>');
-      if (groundStream) get('ugv-expanded-camera').src = groundStreamUrl(`ugv-expanded-${crypto.randomUUID()}`);
-      else if (groundObjectUrl && groundCamera.style.visibility === 'visible') get('ugv-expanded-camera').src = groundObjectUrl;
+      openDialog(`UGV ${groundNames[groundCameraId]} · 实时画面`, '<canvas id="ugv-expanded-camera" aria-label="车端最近完整帧"></canvas><p id="ugv-camera-status" class="dialog-muted">弱网保留最近完整画面，恢复后自动更新。</p>');
+      // The existing stream is mirrored by groundFrames.
       renderGroundFreshness();
     });
     const scanButton = document.querySelector('.ugv-panel [data-business="mapping"]');
@@ -575,7 +589,7 @@
     if (selectedMap && /^[A-Za-z0-9_-]{1,128}$/.test(selectedMap)) {
       closeDialog();
       carMapName = selectedMap;
-      clearMap('正在请求 ' + selectedMap);
+      clearMap('正在请求 ' + selectedMap, true);
       setGroundMode(true);
       void refreshMap();
     } else if (Object.hasOwn(groundNames, selectedCamera)) {
@@ -586,7 +600,13 @@
 
   let scanBusy = false;
   let scanReceivedAt = 0, scanAgeS = null;
-  function clearMap(reason) {
+  function clearMap(reason, discard = false) {
+    if (!discard && carMapObjectUrl) {
+      get('car-map-status').textContent = reason + ' · 保留最近地图';
+      document.querySelector('.ground-map-layer .feed-quality').textContent = '最近地图';
+      if (get('ugv-map-status')) get('ugv-map-status').textContent = get('car-map-status').textContent;
+      return;
+    }
     const image = get('car-map-image');
     if (!image) return;
     image.removeAttribute('src'); image.style.visibility = 'hidden';
@@ -682,6 +702,7 @@
       scanReceivedAt = performance.now();
       scanAgeS = Number.isFinite(data?.age_s) ? data.age_s + (scanReceivedAt - started) / 1000 : null;
       const valid = fresh(scanAgeS) && Array.isArray(data.points);
+      if (!valid) { get('ugv-scan-status').textContent = '雷达暂未更新 · 保留最近扫描'; return; }
       context.clearRect(0, 0, canvas.width, canvas.height);
       const points = valid ? data.points.filter(point => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite) && point[1] > 0) : [];
       const radius = Math.max(2, Math.min(20, Number.isFinite(data.range_max) ? data.range_max : 10));
@@ -703,24 +724,50 @@
       context.fillStyle = '#eab76d'; context.fillRect(296, 196, 8, 8);
       get('ugv-scan-status').textContent = valid ? `${points.length} 个有效扫描点 · 帧龄 ${scanAgeS.toFixed(2)} s · 显示半径 ${radius} m` : '雷达数据过期/缺失';
     } catch {
-      if (get('ugv-scan') === canvas) { scanAgeS = null; context.clearRect(0, 0, canvas.width, canvas.height); get('ugv-scan-status').textContent = '雷达离线'; get('ugv-escape-status').textContent = ''; }
+      if (get('ugv-scan') === canvas) { get('ugv-scan-status').textContent = scanAgeS !== null ? '雷达重连中 · 保留最近扫描' : '等待雷达数据'; }
     } finally { scanBusy = false; }
   }
 
   let liveConnection = null;
+  const uavFrames = AtomoriContinuity.video(get('main-camera'));
+  let lastFrameTiming = null;
   let retryTimer = null;
   let retryAttempt = 0;
   let cameraClockTimer = null;
   const cameraClock = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
   function updateCameraClock() {
-    if (desiredLiveCamera()?.[0] !== 'ov9281.mjpg') return;
     const time = document.querySelector('.uav-panel .feed-bottom span:last-child');
-    time.textContent = `当前时间 ${cameraClock.format(new Date())}`;
-    time.title = '本机当前时间（Asia/Shanghai），每秒更新；不代表相机帧的采样时间';
+    const timing = liveConnection?.timing;
+    if (timing?.verified === true && Number.isFinite(timing.sampledAtMs)) lastFrameTiming = timing;
+    const valid = !retryTimer && timing?.verified === true && Number.isFinite(timing.sampledAtMs)
+      && Number.isFinite(timing.receivedAtMs) && Number.isFinite(timing.uncertaintyMs)
+      && Date.now() - timing.receivedAtMs >= 0 && Date.now() - timing.receivedAtMs <= 3000
+      && Date.now() - timing.sampledAtMs + timing.uncertaintyMs <= 3000;
+    if (valid) {
+      optionalText('.signal-block > div > span', '图传延迟');
+      time.textContent = `采样 ${cameraClock.format(new Date(timing.sampledAtMs))}`;
+      time.title = '当前帧在机端完成解码的时间，已校正两端时钟；不是摄像头曝光时间。';
+      get('camera-meta').textContent = '帧时间已校验';
+      get('camera-meta').title = `逐帧序号 ${timing.frameId}；完整 JPEG 已接收，时钟校正误差约 ±${Math.round(timing.uncertaintyMs)} ms`;
+      get('video-latency').textContent = `≈${Math.round(timing.delayMs)} ms`;
+      get('video-latency').title = `机端解码完成 → 本机完整帧接收，时钟校正误差约 ±${Math.round(timing.uncertaintyMs)} ms；不含相机内部曝光/编码和浏览器绘制耗时。`;
+    } else if (lastFrameTiming && uavFrames.hasFrame) {
+      optionalText('.signal-block > div > span', '最近图传延迟');
+      time.textContent = `采样 ${cameraClock.format(new Date(lastFrameTiming.sampledAtMs))}`;
+      get('camera-meta').textContent = '最近完整帧 · 等待更新';
+      get('video-latency').textContent = `≈${Math.round(lastFrameTiming.delayMs)} ms`;
+      get('video-latency').title = '最近一次已校验完整帧的传输延迟，当前画面尚未更新';
+    } else {
+      time.textContent = `当前 ${cameraClock.format(new Date())}`;
+      time.title = '本机当前时间；尚未收到有效逐帧时间，不能作为相机采样时间。';
+      get('camera-meta').textContent = liveConnection ? '图传连接中 · 等待帧校验' : '无有效实时画面';
+      get('video-latency').textContent = '—';
+      get('video-latency').title = '等待带时间标记的新鲜完整帧；缺失或过期不显示延迟。';
+    }
   }
   function desiredLiveCamera() {
     const tab = document.querySelector('[data-camera-tab][aria-pressed="true"]')?.dataset.cameraTab;
-    return tab === 'uav' && config.carConfigured ? ['a8.mjpg', 'UAV 前视 · 上游图传']
+    return tab === 'uav' && (config.uavVideoConfigured ?? config.carConfigured) ? ['a8.mjpg', 'UAV 前视 · H100 图传']
       : tab === 'dock' && config.uavVisionConfigured ? ['ov9281.mjpg', 'OV9281 · 下视预览'] : null;
   }
   function openLiveCamera(live) {
@@ -728,6 +775,7 @@
     // Its independent status poll will discover recovery before we open MJPEG.
     if (live[0] === 'ov9281.mjpg' && latestVision.sensor !== 'ov9281') {
       liveConnection = null;
+      uavFrames.hold();
       get('main-camera').removeAttribute('src');
       get('main-camera').style.visibility = 'hidden';
       get('camera-quality').textContent = '机载视觉未连接';
@@ -737,14 +785,16 @@
     const url = `/api/v1/devices/UAV-01/cameras/${live[0]}?clientId=${clientId}`;
     liveConnection = { cameraId: live[0], clientId, url, startedAt: Date.now() };
     get('main-camera').src = url;
+    uavFrames.start(live[0]);
     get('main-camera').style.visibility = 'visible';
     get('camera-quality').textContent = '连接图传中…';
   }
   function retryLiveCamera(message = '图传中断 · 自动重连') {
     if (!desiredLiveCamera() || retryTimer) return;
+    uavFrames.hold();
     get('main-camera').removeAttribute('src');
     get('main-camera').style.visibility = 'hidden';
-    get('camera-quality').textContent = message;
+    get('camera-quality').textContent = message + (uavFrames.hasFrame ? ' · 保留画面' : '');
     const expected = liveConnection;
     const delay = Math.min(10000, 1000 * 2 ** Math.min(retryAttempt++, 4));
     retryTimer = setTimeout(() => {
@@ -756,6 +806,10 @@
   function applyUavCamera() {
     const live = desiredLiveCamera();
     const camera = get('main-camera');
+    if (liveConnection && (!live || liveConnection.cameraId !== live[0])) {
+      uavFrames.clear(); lastFrameTiming = null;
+      clearTimeout(retryTimer); retryTimer = null;
+    }
     if (live) {
       if (!retryTimer && (!liveConnection || liveConnection.cameraId !== live[0] || camera.getAttribute('src') !== liveConnection.url)) {
         clearTimeout(retryTimer); retryTimer = null; retryAttempt = 0;
@@ -763,14 +817,11 @@
       }
       camera.alt = live[1];
       get('camera-name').textContent = live[1];
-      get('camera-meta').textContent = '上游图传 · 帧时间未校验';
-      get('camera-meta').title = '持续监测上游传输状态；设备未提供可核验的图像采样时间戳';
-      if (live[0] === 'ov9281.mjpg') {
-        updateCameraClock();
-        if (cameraClockTimer === null) cameraClockTimer = setInterval(updateCameraClock, 1000);
-      }
+      updateCameraClock();
+      if (cameraClockTimer === null) cameraClockTimer = setInterval(updateCameraClock, 500);
     } else {
       clearTimeout(retryTimer); retryTimer = null; liveConnection = null; retryAttempt = 0;
+      uavFrames.clear(); lastFrameTiming = null;
       const tab = document.querySelector('[data-camera-tab][aria-pressed="true"]')?.dataset.cameraTab;
       get('camera-name').textContent = tab === 'thermal' ? '热成像 · 演示样本' : '可见光 · 演示样本';
       get('camera-quality').textContent = '未接入';
@@ -787,11 +838,12 @@
         get('camera-meta').textContent = '机载视觉未连接';
       }
     }
-    if (live?.[0] !== 'ov9281.mjpg') {
+    if (!live) {
       clearInterval(cameraClockTimer); cameraClockTimer = null;
       const time = document.querySelector('.uav-panel .feed-bottom span:last-child');
-      time.textContent = '采样时间未提供';
+      time.textContent = '—';
       time.title = '';
+      get('video-latency').textContent = '—';
     }
   }
   async function monitorCamera() {
@@ -800,15 +852,32 @@
     try {
       const data = (await AtomoriApi.request('/devices/UAV-01/streams', { timeoutMs: 3000 })).data;
       if (connection !== liveConnection) return;
+      connection.healthFailureAt = null;
       const health = data.streamHealth?.find(item => item.clientId === connection.clientId && item.cameraId === connection.cameraId);
+      connection.timing = health?.timing || null;
+      updateCameraClock();
+      // Once this source supports frame IDs, byte activity alone cannot keep a repeated/truncated frame alive.
+      const framedA8 = connection.cameraId === 'a8.mjpg' && (data.timingCalibration || Number.isFinite(health?.frameReceivedAtMs));
+      if (framedA8 && Date.now() - (health?.frameReceivedAtMs ?? connection.startedAt) > (Number.isFinite(health?.frameReceivedAtMs) ? 3000 : 10000)) {
+        retryLiveCamera('完整帧已停更 · 自动重连');
+        return;
+      }
       if (health?.active && Number.isFinite(health.idleAgeMs) && health.idleAgeMs < 5000) {
-        if (!retryTimer) get('camera-quality').textContent = '上游视频 · 持续接收';
+        if (!retryTimer) get('camera-quality').textContent = '图传在线';
         // 连续稳定十秒后再重置退避，避免故障服务每帧都被重置重试频率。
         if (Date.now() - connection.startedAt > 10000) retryAttempt = 0;
       } else if (health?.closedAt || (Date.now() - connection.startedAt > 10000 && (!health || health.idleAgeMs === null || health.idleAgeMs >= 5000))) {
         retryLiveCamera();
       }
-    } catch { if (connection === liveConnection) retryLiveCamera('图传状态不可用 · 自动重连'); }
+    } catch {
+      // A status request can fail while MJPEG still plays. Do not tear it down
+      // until repeated monitoring failures exceed the grace period.
+      if (connection === liveConnection) {
+        connection.healthFailureAt ??= Date.now();
+        get('camera-quality').textContent = '链路波动 · 保留画面';
+        if (Date.now() - connection.healthFailureAt > 8000) retryLiveCamera('图传状态中断 · 自动重连');
+      }
+    }
   }
   if (config.uavVisionConfigured) document.querySelector('[data-camera-tab="dock"]').click();
   applyUavCamera();
@@ -855,22 +924,25 @@
       const requestedAt = performance.now();
       const data = (await AtomoriApi.request(`/devices/${deviceId}/telemetry${source ? '?source=' + source : ''}`, { timeoutMs: 5000 })).data;
       if (!stopped) apply(data, requestedAt);
-    } catch { if (!stopped) offline(); }
+      return data.upstreamAvailable !== false;
+    } catch { if (!stopped) offline(); return false; }
   }
 
-  async function repeat(action, delay) {
+  async function repeat(action, delay, failures = 0) {
     if (stopped) return;
-    await action();
-    schedule(() => repeat(action, delay), delay);
+    const okay = await action();
+    const nextFailures = okay === false ? Math.min(failures + 1, 3) : 0;
+    schedule(() => repeat(action, delay, nextFailures), Math.min(4000, delay * 2 ** nextFailures));
   }
   applyUgv({});
   // Keep the previous sample's original age through transient HTTP failures.
-  if (config.carConfigured) void repeat(() => pollDevice('UGV-01', applyUgv, () => { renderUgv(); renderGroundFreshness(); }), 500);
+  if (config.carConfigured) void repeat(() => pollDevice('UGV-01', applyUgv, () => { renderUgv(); renderGroundFreshness(); }), 750);
   if (config.carConfigured) void repeat(async () => {
-    if (document.hidden) return;
+    // Four secondary upstream requests are only needed while details are visible.
+    if (document.hidden || !get('action-dialog').open || !get('ugv-live-details')) return;
     const requestedAt = performance.now();
     try { latestUgvDetails = (await AtomoriApi.request('/devices/UGV-01/details', { timeoutMs: 4000 })).data || {}; }
-    catch { latestUgvDetails = {}; }
+    catch { renderUgv(); return; }
     ugvDetailsReceivedAt = requestedAt;
     renderUgv();
   }, 3000);
@@ -880,15 +952,15 @@
       const data = (await AtomoriApi.request('/devices/UAV-01/mission-planner', { timeoutMs: 4000 })).data;
       if (data?.deviceId !== 'UAV-01' || data.source !== 'mission-planner-mavlink' || typeof data.flight?.connected !== 'boolean') throw new Error('飞控遥测来源无效');
       if (!stopped) applyUav(data, requestedAt);
-    } catch { if (!stopped) applyUav({ flight: {} }); }
-  }, 200);
-  else if (flightSource() === 'raspberry-pi') void repeat(() => pollDevice('UAV-01', applyUav, () => applyUav({ flight: {} }), 'flight'), 200);
+    } catch { if (!stopped) renderUav(); }
+  }, 750);
+  else if (flightSource() === 'raspberry-pi') void repeat(() => pollDevice('UAV-01', applyUav, renderUav, 'flight'), 750);
   if (config.uavVisionConfigured) void repeat(() => pollDevice('UAV-01', applyUav,
-    () => applyUav(independentFlight() ? { vision: {} } : { flight: {}, vision: {} }), independentFlight() ? 'vision' : undefined), 500);
-  void repeat(async () => { await monitorCamera(); if (!stopped) applyUavCamera(); }, 2000);
+    renderUav, independentFlight() ? 'vision' : undefined), 1000);
+  void repeat(async () => { await monitorCamera(); if (!stopped) applyUavCamera(); }, 1000);
   void repeat(refreshScan, 2000);
-  if (config.carConfigured) void repeat(refreshMap, 2000);
-  if (config.carConfigured) void repeat(refreshGroundCamera, 100);
+  if (config.carConfigured) void repeat(() => document.querySelector('.ground-feed').classList.contains('show-car-map') ? refreshMap() : undefined, 4000);
+  if (config.carConfigured) void repeat(refreshGroundCamera, 250);
   const ugvWatchdog = setInterval(() => {
     renderUgv();
     renderUav();
@@ -897,15 +969,14 @@
     renderMapFreshness();
     const scan = get('ugv-scan');
     if (scan && get('action-dialog').open && scanAgeS !== null && !fresh(scanAgeS + (performance.now() - scanReceivedAt) / 1000)) {
-      scan.getContext('2d').clearRect(0, 0, scan.width, scan.height);
-      get('ugv-scan-status').textContent = '雷达数据过期/缺失';
-      get('ugv-escape-status').textContent = '';
+      get('ugv-scan-status').textContent = '雷达暂未更新 · 保留最近扫描';
     }
   }, 250);
   applyUav({ flight: {} });
   window.addEventListener('pagehide', () => {
     stopped = true;
     stopGroundStream();
+    groundFrames.dispose(); uavFrames.dispose();
     for (const timer of pollingTimers) clearTimeout(timer);
     pollingTimers.clear(); clearInterval(ugvWatchdog);
     clearTimeout(retryTimer); retryTimer = null; clearInterval(cameraClockTimer); cameraClockTimer = null; liveConnection = null;

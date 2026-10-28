@@ -68,6 +68,7 @@ function setup() {
   };
   const jpegResponse = (ok = true) => ({ ok, headers: { get: () => 'image/jpeg' }, blob: async () => ({}) });
   const context = {
+    AtomoriContinuity: { video: () => ({ hasFrame: false, start() {}, hold() {}, clear() {}, dispose() {} }) },
     window: {}, document, get, config: { carConfigured: true }, stopped: false,
     performance: { now: () => now },
     Date: class extends Date {
@@ -202,7 +203,7 @@ test('已验证前视流独立接收新字节，遥测迟到不清流，真实�
       assert.equal(view.get('ground-camera').src, src);
     }
     assert.equal(view.cameraState().valid, false);
-    assert.equal(view.get('ugv-camera-status').textContent, '连续接收车端新画面');
+    assert.equal(view.get('ugv-camera-status').textContent, '正在接收车端视频数据');
     assert.equal(view.healthRequests.length, 5, '遥测过期不能阻止已建流继续检查独立活性');
     view.clock(7501); view.renderGroundFreshness();
     assert.equal(view.get('ground-camera').src, undefined);
@@ -253,13 +254,12 @@ test('隐藏页面会取消后视JPEG请求，恢复可重新请求', async () =
   assert.match(view.get('ground-camera').alt, /后视/);
 });
 
-test('关闭放大弹窗取消其独立视频流，同时保持主画面', async () => {
+test('放大弹窗复用画面，不新增上游连接，关闭保持主流', async () => {
   const view = setup();
   view.get('action-dialog').open = true;
   await view.refreshGroundCamera();
   const main = view.get('ground-camera').src;
-  assert.match(view.get('ugv-expanded-camera').src, /front\.mjpg/);
-  assert.notEqual(view.get('ugv-expanded-camera').src, main);
+  assert.equal(view.get('ugv-expanded-camera').src, undefined, '镜像画布不单独拉视频流');
   view.get('action-dialog').dispatch('close');
   assert.equal(view.get('ugv-expanded-camera').src, undefined);
   assert.equal(view.get('ground-camera').src, main);

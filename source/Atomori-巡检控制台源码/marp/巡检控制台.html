@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0c171e"><title>Atomori · 空地协同巡检平台</title><link rel="stylesheet" href="console.css?rev=20261025ugvcontrol"><link rel="stylesheet" href="dashboard-theme.css?rev=20261027controlentry"><link rel="stylesheet" href="coordination.css?rev=20261027laser"></head>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0c171e"><title>Atomori · 空地协同巡检平台</title><link rel="stylesheet" href="console.css?rev=20261025ugvcontrol"><link rel="stylesheet" href="dashboard-theme.css?version=h100v2&rev=20261027controlentry"><link rel="stylesheet" href="coordination.css?rev=20261027laser"></head>
 <body class="dashboard-page" data-car-map-image="../assets/maps/ugv-reference-20261027.png"><svg class="icon-defs" aria-hidden="true"><defs>
 <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
 <symbol id="i-task" viewBox="0 0 24 24"><rect x="5" y="4" width="15" height="18" rx="2"/><path d="M9 2h7v4H9M8 11l2 2 3-3m1 2h3M8 17h9"/></symbol>
@@ -50,7 +50,7 @@
    </svg><span id="attitude-status" class="attitude-status">姿态不可用</span></div>
    <div class="attitude-readings"><span>横滚 <b id="uav-roll">—</b></span><span>俯仰 <b id="uav-pitch">—</b></span></div>
   </div>
-  <div class="signal-block" aria-label="图传延迟"><div><span>图传延迟</span><strong id="video-latency" title="当前相机尚未提供可验证的采集到显示端到端图传延迟">—</strong></div></div>
+  <div class="signal-block" aria-label="图传延迟"><div><span>图传延迟</span><strong id="video-latency" title="机端解码完成到本机完整帧接收的实测延迟，含时钟校正误差">—</strong></div></div>
  </div>
 
  <div class="flight-footer"><span>飞行模式 <b id="drone-state">—</b></span><span id="flight-link"><svg><use href="#i-link"/></svg>遥测未连接</span></div>
@@ -61,8 +61,8 @@
  <div class="camera-feed ground-feed"><img id="ground-camera" alt="等待无人车画面"><div class="feed-top"><span class="feed-label"><i></i>地面图传</span><span class="feed-quality">未连接</span></div><div class="feed-bottom"><span>等待实时画面</span><span>—</span></div><button id="expand-ground" class="feed-expand" aria-label="放大无人车画面"><svg><use href="#i-expand"/></svg></button></div>
  <div class="camera-toolbar"><button id="ground-view">地面图传</button><button id="mark-ground">标记疑点</button></div>
  <div class="telemetry-heading"><span>车辆遥测 <small>等待数据</small></span><button data-business="mapping">查看点云 ↗</button></div>
- <div class="metric-grid"><div class="metric"><span>电池电量（估算）</span><div class="battery-reading"><strong>—</strong><span class="battery-track"><i id="ugv-battery-fill"></i></span><svg class="battery-icon" viewBox="0 0 24 16"><rect x="1" y="3" width="19" height="10" rx="1"/><path d="M23 6v4M4 6h13v4H4z"/></svg></div></div><div class="metric"><span>行驶速度</span><strong id="rover-speed">—</strong></div><div class="metric"><span>环境温度</span><strong>—</strong></div><div class="metric"><span>相对湿度</span><strong>—</strong></div></div>
- <div class="sensor-heading">传感器状态</div><div class="environment-grid"><button data-business="gas"><svg viewBox="0 0 24 24"><path d="M3 9h4l5-5v16l-5-5H3zM16 8a7 7 0 0 1 0 8m3-11a11 11 0 0 1 0 14"/></svg><span>声音</span><b>—</b></button><button data-business="gas"><svg viewBox="0 0 24 24"><path d="M12 2c2 6 8 7 8 13a8 8 0 0 1-16 0c0-3 2-5 4-7 0 4 1 5 2 5 2-3 2-7 2-11Z"/></svg><span>火焰</span><b>—</b></button><button data-business="gas"><svg viewBox="0 0 24 24"><path d="M6 18a4 4 0 0 1-1-8 6 6 0 0 1 12-1 4.5 4.5 0 0 1 0 9Z"/></svg><span>气体检测</span><b>—</b></button></div>
+ <div class="metric-grid"><div class="metric"><span>电池电量</span><div class="battery-reading"><strong>—</strong><span class="battery-track"><i id="ugv-battery-fill"></i></span><svg class="battery-icon" viewBox="0 0 24 16"><rect x="1" y="3" width="19" height="10" rx="1"/><path d="M23 6v4M4 6h13v4H4z"/></svg></div></div><div class="metric"><span>行驶速度</span><strong id="rover-speed">—</strong></div><div class="metric"><span>环境温度</span><strong>—</strong></div><div class="metric"><span>相对湿度</span><strong>—</strong></div></div>
+ <div class="sensor-heading">传感器状态</div><div class="environment-grid"><button data-business="gas"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 15c-3-4 5-5 2-9m5 9c-3-4 5-5 2-9m3 9c-2-3 3-4 2-7"/></svg><span>烟雾检测</span><b>—</b></button><button data-business="gas"><svg viewBox="0 0 24 24"><path d="M12 2c2 6 8 7 8 13a8 8 0 0 1-16 0c0-3 2-5 4-7 0 4 1 5 2 5 2-3 2-7 2-11Z"/></svg><span>火焰</span><b>—</b></button><button data-business="gas"><svg viewBox="0 0 24 24"><path d="M6 18a4 4 0 0 1-1-8 6 6 0 0 1 12-1 4.5 4.5 0 0 1 0 9Z"/></svg><span>一氧化碳</span><b>—</b></button><button data-business="gas"><svg viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3Zm13-1a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg><span>声音检测</span><b>—</b></button></div>
  <div class="location-footer"><span>定位状态</span><b id="localization-state">◎　未定位</b><button id="ground-camera-shortcut" data-open-ugv-scan title="查看实时激光雷达点云">实时雷达 ↗</button></div><div class="link-topology" hidden>等待定位数据</div><span id="rover-state" hidden>未连接</span>
 </section>
 </main>
@@ -93,5 +93,5 @@
 <footer class="system-footer"><span id="dashboard-system-status"><i></i>系统正在连接</span><div><a href="ugv-control.html">车端控制 ↗</a><a id="open-product-showcase" href="../assets/product-viewer/index.html">产品展示 ↗</a><span id="dashboard-source">任务参考图数据 · 实时设备遥测</span></div></footer>
 </div>
 <dialog id="action-dialog"><div class="dialog-heading"><h2 id="dialog-title"></h2><button id="close-dialog" aria-label="关闭窗口">×</button></div><div id="dialog-body"></div><div id="dialog-actions"></div></dialog><div id="toast" role="status" aria-live="polite"></div>
-<script src="api.js?rev=20261008a"></script><script src="records.js?rev=20261027live2"></script><script src="console.js?rev=20261027live2"></script><script src="ugv-view.js?rev=20261027live2"></script><script src="dashboard.js?rev=20261027battery4h"></script><script src="ugv-battery.js?rev=20261027battery4h"></script><script src="live.js?rev=20261027ugvvideo"></script>
+<script src="api.js?rev=20261028h100v2"></script><script src="records.js?rev=20261027live2"></script><script src="console.js?rev=20261027live2"></script><script src="ugv-view.js?rev=20261028stable"></script><script src="dashboard.js?rev=20261028sound"></script><script src="ugv-battery.js?rev=20261027battery4h"></script><script src="continuity.js?rev=20261028stable"></script><script src="live.js?rev=20261028stable"></script>
 </body></html>

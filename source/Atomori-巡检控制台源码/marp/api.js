@@ -2,6 +2,16 @@
 
 // 同源轻量调用层；不自动重试写入，业务层保留 requestId 后由用户重试。
 const AtomoriApi = {
+  // normalizedAt is stamped by the same-host adapter after it has accounted
+  // for device HTTP time. Browser queueing before that sample is not sample age.
+  sampleTime(data, requestedAt = performance.now()) {
+    const now = performance.now(), wallNow = Date.now();
+    const normalizedAt = Date.parse(data?.normalizedAt);
+    if (Number.isFinite(normalizedAt) && normalizedAt <= wallNow) return now - (wallNow - normalizedAt);
+    const adapterMs = data?.ageIncludes === 'device-http-and-response-wait'
+      && Number.isFinite(data.snapshotAgeS) && data.snapshotAgeS >= 0 ? data.snapshotAgeS * 1000 : 0;
+    return Math.min(now, requestedAt + adapterMs);
+  },
   async request(path, { method = 'GET', body, timeoutMs = 8000 } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);

@@ -8,6 +8,10 @@
 
 .gesture-panel video{display:block;max-height:180px;aspect-ratio:4/3;object-fit:contain;background:#0c1016}
 .gesture-panel #camera-status{margin:10px 0 0;color:#dbeaf0;overflow-wrap:anywhere}
+.gesture-panel{margin:0 0 18px;border-color:#ef69743d;background:#141a22}
+.gesture-panel summary{font-weight:600}.gesture-panel summary span{float:right;font-size:10px;font-weight:400;color:#a8d6cb;border:1px solid #a8d6cb40;border-radius:4px;padding:1px 5px}
+#camera-toggle{border-color:#ef697477;color:#ffb9bf}#camera-toggle[aria-pressed=true]{background:#ef6974;color:#201015}
+@media(max-width:600px){#gesture-focus{display:none}}
 
 /* Navigation and loading controls shared with the standalone explorer. */
 .header-actions{display:flex;align-items:center;gap:20px;flex-shrink:0;white-space:nowrap}

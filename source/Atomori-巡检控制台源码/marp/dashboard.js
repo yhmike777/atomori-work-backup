@@ -8,7 +8,7 @@
   const url = new URL(location.href);
   if (url.searchParams.has('preview')) { url.searchParams.delete('preview'); history.replaceState(null, '', url); }
   AtomoriRuntime.preview = false;
-  const text = (id, value) => { const node = get(id); if (node) node.textContent = value; };
+  const text = (id, value) => { const node = get(id); if (node && node.textContent !== value) node.textContent = value; };
   // User-supplied reference values for this presentation card, not device telemetry.
   const missionReference = {
     name: '综合管廊 A 区 · 日常巡检', status: '进行中', progress: 68,
@@ -17,14 +17,15 @@
   const connection = (id, online) => {
     const node = get(id);
     node.classList.toggle('is-online', Boolean(online));
-    node.replaceChildren(document.createElement('i'), document.createTextNode(online ? '在线' : '未连接'));
+    const label = online ? '在线' : '未连接';
+    if (node.textContent !== label) node.replaceChildren(document.createElement('i'), document.createTextNode(label));
   };
   const battery = (id, value) => {
     get(id).style.width = Number.isFinite(value) ? `${Math.max(0, Math.min(100, value))}%` : '0%';
   };
   function renderSensorDots() {
     document.querySelectorAll('.environment-grid b').forEach(node => {
-      node.dataset.state = node.textContent === '正常' ? 'normal' : /危险|异常|^触发$/.test(node.textContent) ? 'alert' : 'unknown';
+      node.dataset.state = /^(正常|未触发)$/.test(node.textContent) ? 'normal' : /危险|异常|检测到声音|^(已)?触发$/.test(node.textContent) ? 'alert' : 'unknown';
     });
   }
   function renderEvents(events, failed = false) {
@@ -82,8 +83,8 @@
   get('dashboard-mode').addEventListener('click', () => document.querySelector('[data-nav="devices"]').click());
   function renderSystemStatus() {
     const node = get('dashboard-system-status');
-    text('dashboard-system-status', !serviceOnline ? '数据服务未连接' : uavOnline && ugvOnline ? '设备遥测在线' : uavOnline || ugvOnline ? '部分设备已连接' : '设备未连接');
-    node.prepend(document.createElement('i'));
+    const label = !serviceOnline ? '数据服务未连接' : uavOnline && ugvOnline ? '设备遥测在线' : uavOnline || ugvOnline ? '部分设备已连接' : '设备未连接';
+    if (node.textContent !== label) node.replaceChildren(document.createElement('i'), document.createTextNode(label));
     node.classList.toggle('is-online', serviceOnline && (uavOnline || ugvOnline));
   }
   let serviceOnline = false, uavOnline = false, ugvOnline = false;
@@ -114,7 +115,7 @@
     get('localization-state').classList.toggle('is-online', event.detail.localized);
   });
   document.addEventListener('atomori:relative', event => {
-    get('relative-horizontal').innerHTML = event.detail.valid ? `${event.detail.horizontal.toFixed(2)} <small>m</small>` : '—';
+    get('relative-horizontal').innerHTML = Number.isFinite(event.detail.horizontal) ? `${event.detail.horizontal.toFixed(2)} <small>m</small>` : '—';
     document.querySelector('.relative-position').classList.toggle('is-valid', event.detail.valid);
   });
   document.addEventListener('atomori:sensors', renderSensorDots);

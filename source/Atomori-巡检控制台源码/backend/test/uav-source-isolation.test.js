@@ -11,6 +11,33 @@ const vision = () => ({ sensor: 'ov9281', found: true, tag_id: 1, quality_passed
 });
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+test('机载 IMU、航向独立于定位，校验单位、时效、断连且不推断自检正常', async () => {
+  const raw = flight();
+  raw.vehicle_state_age_s = 1.2;
+  for (const [key, value, unit] of [['gyro_x', 0, 'rad/s'], ['gyro_y', -0.002, 'rad/s'], ['accel_z', 9.8, 'm/s²'], ['heading_deg', 306.2, 'deg']]) {
+    raw.telemetry[key] = value;
+    raw.telemetry_meta[key] = { valid: true, age_s: 0.05, unit, source: '/mavros/imu/data' };
+  }
+  const adapter = createUpstreamIntegrations({ uavFlightUrl: 'http://flight', fetchImpl: async () => Response.json(raw) });
+  let result = (await adapter.telemetry('UAV-01', 'flight')).flight;
+  assert.equal(result.details.metrics.gyroX.value, 0);
+  assert.equal(result.details.metrics.gyroY.value, -0.002);
+  assert.equal(result.details.metrics.accelZ.value, 9.8);
+  assert.equal(result.details.metrics.heading.value, 306.2);
+  assert.equal(result.metrics.localAltitude.value, null);
+  assert.equal(result.details.health, undefined);
+  raw.telemetry_meta.gyro_x.age_s = 0.6;
+  raw.telemetry_meta.accel_z.unit = 'wrong';
+  result = (await adapter.telemetry('UAV-01', 'flight')).flight;
+  assert.equal(result.details.metrics.gyroX.value, null);
+  assert.equal(result.details.metrics.accelZ.value, null);
+  assert.equal(result.details.metrics.gyroY.valid, true);
+  raw.flight_controller_connected = false;
+  result = (await adapter.telemetry('UAV-01', 'flight')).flight;
+  assert.equal(result.details.metrics.heading.value, null);
+  assert.equal(result.details.metrics.gyroY.value, null);
+});
+
 test('飞控与视觉独立读取：另一源请求挂起或失败不阻塞有效样本', async () => {
   for (const slow of ['vision', 'flight']) {
     let release;

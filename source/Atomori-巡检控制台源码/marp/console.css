@@ -82,3 +82,7 @@
   .device-panel .environment-grid small{display:inline;font-size:9px;margin-left:2px}
   .ugv-panel .link-topology{align-self:stretch;font-size:9px}
 }
+.camera-feed>.retained-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;background:#0b151c}
+.camera-feed>.retained-video[hidden]{display:none}
+.ground-feed.show-car-map>.retained-video{visibility:hidden}
+#ugv-expanded-camera{display:block;max-width:100%;height:auto;margin:auto}

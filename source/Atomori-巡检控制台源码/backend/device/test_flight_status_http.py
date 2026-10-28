@@ -1,9 +1,13 @@
 """Pure state/callback tests; ROS imports are stubs, no device/control is used."""
 import importlib.util
+import gzip
+from http.client import HTTPConnection
+from http.server import ThreadingHTTPServer
 import json
 import math
 from pathlib import Path
 import sys
+import threading
 import time
 import types
 import unittest
@@ -32,7 +36,7 @@ stub_modules = {
     "std_msgs": module("std_msgs"),
     "std_msgs.msg": module("std_msgs.msg", String=object, Float64=object),
     "sensor_msgs": module("sensor_msgs"),
-    "sensor_msgs.msg": module("sensor_msgs.msg", Range=object, BatteryState=object),
+    "sensor_msgs.msg": module("sensor_msgs.msg", Range=object, BatteryState=object, Imu=object),
 }
 spec = importlib.util.spec_from_file_location("flight_status_bridge_under_test",
     Path(__file__).with_name("flight_status_http.py"))
@@ -109,10 +113,79 @@ class TelemetryBridgeTests(unittest.TestCase):
 
     def test_stale_vehicle_state_gates_all_values(self):
         self.battery()
-        self.state.vehicle_received_s = time.monotonic() - 2
+        self.state.vehicle_received_s = time.monotonic() - 4
         result = self.state.snapshot()
         self.assertIsNone(result["telemetry"]["battery_voltage_v"])
         self.assertFalse(result["flight_controller_connected"])
+
+    def imu(self, orientation_cov=0, gyro_cov=0):
+        vector = lambda x, y, z: types.SimpleNamespace(x=x, y=y, z=z)
+        self.node._imu(types.SimpleNamespace(
+            orientation=types.SimpleNamespace(x=0, y=0, z=0, w=1),
+            orientation_covariance=[orientation_cov] * 9,
+            angular_velocity=vector(0.001, -0.002, 0.0), angular_velocity_covariance=[gyro_cov] * 9,
+            linear_acceleration=vector(0.1, -0.1, 9.8), linear_acceleration_covariance=[0] * 9))
+        return self.state.snapshot()
+
+    def test_imu_without_position_does_not_invent_position_or_command_frame(self):
+        self.state.vehicle['mode'] = 'GUIDED'
+        self.state.command = {'coordinate_frame': 1, 'type_mask': 0, 'velocity': {'x': 1, 'y': 0, 'z': 0}, 'yaw_rate': 0}
+        self.state.command_received_s = time.monotonic()
+        result = self.imu()
+        self.assertEqual(result['telemetry']['roll_deg'], 0)
+        self.assertEqual(result['telemetry']['gyro_y'], -0.002)
+        self.assertEqual(result['telemetry']['accel_z'], 9.8)
+        self.assertIn('/mavros/imu/data', result['telemetry_meta']['roll_deg']['source'])
+        self.assertIsNone(result['telemetry']['estimated_altitude_m'])
+        self.assertIsNone(result['motion_command']['body_velocity_mps'])
+
+    def test_imu_covariance_and_expiry_are_independent(self):
+        result = self.imu(orientation_cov=-1)
+        self.assertIsNone(result['telemetry']['roll_deg'])
+        self.assertEqual(result['telemetry']['gyro_x'], 0.001)
+        result = self.imu(gyro_cov=-1)
+        self.assertEqual(result['telemetry']['roll_deg'], 0)
+        self.assertIsNone(result['telemetry']['gyro_x'])
+        self.state.imu_received_s = time.monotonic() - 0.6
+        result = self.state.snapshot()
+        for key in ('roll_deg', 'gyro_x', 'accel_z'):
+            self.assertIsNone(result['telemetry'][key])
+
+    def test_imu_falls_back_to_pose_only_when_pose_is_valid(self):
+        self.state.pose_quaternion = (0, 0, 0, 1)
+        self.state.pose_received_s = time.monotonic()
+        result = self.imu(orientation_cov=-1)
+        self.assertEqual(result['telemetry']['roll_deg'], 0)
+        self.assertIn('local_position', result['telemetry_meta']['roll_deg']['source'])
+        self.state.pose_received_s -= 1
+        self.assertIsNone(self.state.snapshot()['telemetry']['roll_deg'])
+
+    def test_heading_rejects_invalid_values_and_expires(self):
+        for value in (None, True, float('nan'), -1, 360):
+            self.node._heading(types.SimpleNamespace(data=value))
+            self.assertIsNone(self.state.snapshot()['telemetry']['heading_deg'])
+        self.node._heading(types.SimpleNamespace(data=306.2))
+        self.assertEqual(self.state.snapshot()['telemetry']['heading_deg'], 306.2)
+        self.state.heading_received_s -= 1
+        self.assertIsNone(self.state.snapshot()['telemetry']['heading_deg'])
+
+    def test_display_tolerates_heartbeat_jitter_without_relaxing_commands(self):
+        self.battery()
+        self.imu()
+        self.state.vehicle['mode'] = 'GUIDED'
+        self.state.vehicle_received_s = time.monotonic() - 1.2
+        self.state.command = {'coordinate_frame': 8, 'type_mask': 0, 'velocity': {'x': 1, 'y': 0, 'z': 0}, 'yaw_rate': 0}
+        self.state.command_received_s = time.monotonic()
+        result = self.state.snapshot()
+        self.assertEqual(result['telemetry']['roll_deg'], 0)
+        self.assertEqual(result['telemetry']['battery_voltage_v'], 15.3)
+        self.assertIsNone(result['motion_command']['body_velocity_mps'])
+        self.state.vehicle_received_s -= 1
+        result = self.state.snapshot()
+        self.assertTrue(result['flight_controller_connected'])
+        self.assertIsNone(result['telemetry']['roll_deg'])
+        self.state.vehicle['connected'] = False
+        self.assertIsNone(self.state.snapshot()['telemetry']['gyro_x'])
 
     def test_relative_altitude_is_independent_of_local_pose_and_range(self):
         self.node._relative_altitude(types.SimpleNamespace(data=-0.4))
@@ -185,6 +258,62 @@ class TelemetryBridgeTests(unittest.TestCase):
         self.assertIsNone(result['telemetry']['pitch_deg'])
         self.assertEqual(result['telemetry_meta']['roll_deg']['reason'], 'FLIGHT_CONTROLLER_DISCONNECTED')
         json.dumps(result, allow_nan=False)
+
+
+class TelemetryHttpCompressionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.payload = bridge.FlightStatusState(0.05).snapshot()
+        cls.payload['precision_probe'] = -1.09876543210987
+        cls.history = {'samples': [cls.payload], 'sample_period_s': 1}
+        class Handler(bridge.FlightStatusHandler):
+            state = types.SimpleNamespace(snapshot=lambda: cls.payload, history_snapshot=lambda: cls.history)
+        cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=2)
+
+    def request(self, encoding=None, path='/api/status'):
+        connection = HTTPConnection('127.0.0.1', self.server.server_port, timeout=3)
+        try:
+            connection.putrequest('GET', path, skip_accept_encoding=True)
+            if encoding is not None:
+                connection.putheader('Accept-Encoding', encoding)
+            connection.endheaders()
+            response = connection.getresponse()
+            payload = response.read()
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.getheader('Vary'), 'Accept-Encoding')
+            self.assertEqual(int(response.getheader('Content-Length')), len(payload))
+            return response.getheader('Content-Encoding'), payload
+        finally:
+            connection.close()
+
+    def test_explicit_gzip_quality_round_trip_keeps_every_field_and_precision(self):
+        for encoding in ('gzip', 'br, gzip;q=0.5', 'GZIP ; q = 1'):
+            with self.subTest(encoding=encoding):
+                content_encoding, payload = self.request(encoding)
+                self.assertEqual(content_encoding, 'gzip')
+                uncompressed = gzip.decompress(payload)
+                self.assertEqual(json.loads(uncompressed), self.payload)
+                self.assertLess(len(payload), len(uncompressed) / 10)
+
+    def test_q_zero_absent_or_unsupported_encoding_keeps_original_json(self):
+        for encoding in (None, 'identity', '*', 'br', 'gzip;q=0', 'gzip;q=0.0, br', 'gzip;q=no', 'gzip;q=2', 'gzip;q=nan'):
+            with self.subTest(encoding=encoding):
+                content_encoding, payload = self.request(encoding)
+                self.assertIsNone(content_encoding)
+                self.assertEqual(json.loads(payload), self.payload)
+
+    def test_history_endpoint_has_the_same_lossless_negotiation(self):
+        content_encoding, payload = self.request('gzip', '/api/history?test=1')
+        self.assertEqual(content_encoding, 'gzip')
+        self.assertEqual(json.loads(gzip.decompress(payload)), self.history)
 
 
 if __name__ == "__main__":

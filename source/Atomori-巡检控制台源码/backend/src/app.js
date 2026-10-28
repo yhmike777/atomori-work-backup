@@ -4,6 +4,7 @@ import { extname, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import { assets, devices, mission, missionId, site } from './catalog.js';
 import { unconfiguredIntegrations } from './integrations.js';
+import { createFrameObserver, calibratedFrameTiming } from './frame-timing.js';
 
 const mime = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -34,13 +35,14 @@ function proxyMedia(res, upstream, health, abort) {
     abort?.();
   };
   if (health) {
+    const observeFrame = health.cameraId === 'a8.mjpg' ? createFrameObserver(health) : null;
     health.active = true;
     const watch = () => {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => { cleanup(); stream.destroy(); res.destroy(); }, 15_000);
       idleTimer.unref();
     };
-    stream.on('data', chunk => { health.receivedBytes += chunk.length; health.lastDataAt = new Date().toISOString(); watch(); });
+    stream.on('data', chunk => { health.receivedBytes += chunk.length; health.lastDataAt = new Date().toISOString(); observeFrame?.(chunk); watch(); });
     watch();
   }
   stream.on('error', () => res.destroy());
@@ -157,7 +159,7 @@ export function createApp({ store, webRoot, integrations = unconfiguredIntegrati
         const source = requestUrl.searchParams.get('source');
         if (source !== null && (deviceMatch[1] !== 'UAV-01' || deviceMatch[2] !== 'telemetry' || !['flight', 'vision'].includes(source))) return fail(res, 400, 'INVALID_TELEMETRY_SOURCE', '遥测来源必须为 flight 或 vision');
         const value = deviceMatch[2] === 'telemetry' ? await integrations.telemetry(deviceMatch[1], source || undefined) : await integrations.stream(deviceMatch[1]);
-        if (deviceMatch[2] === 'streams') value.streamHealth = [...mediaHealth.values()].filter(item => item.deviceId === deviceMatch[1]).map(item => ({ ...item, idleAgeMs: item.lastDataAt ? Date.now() - Date.parse(item.lastDataAt) : null }));
+        if (deviceMatch[2] === 'streams') value.streamHealth = [...mediaHealth.values()].filter(item => item.deviceId === deviceMatch[1]).map(item => ({ ...item, timing: calibratedFrameTiming(item, value.timingCalibration), idleAgeMs: item.lastDataAt ? Date.now() - Date.parse(item.lastDataAt) : null }));
         return json(res, 200, { data: value });
       }
       if (req.method === 'POST' && pathname === '/api/v1/commands') {

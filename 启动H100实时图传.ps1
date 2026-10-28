@@ -1,6 +1,7 @@
 ﻿# Video-only connection through the H100 Ethernet network.
 param(
   [string]$CarUrl = 'http://192.168.50.2:8765',
+  [string]$UavVideoUrl = 'http://192.168.50.3:8870',
   [string]$UavVisionUrl = '',
   [string]$UavFlightUrl = '',
   [string]$MissionPlannerUrl = '',
@@ -27,9 +28,10 @@ $env:ATOMORI_LISTEN_ADDRESS = '127.0.0.1'
 $env:ATOMORI_DATA_FILE = $recordsPath
 $env:ATOMORI_LIVE_ONLY = 'true'
 $env:ATOMORI_CAR_URL = $CarUrl
+$env:ATOMORI_UAV_VIDEO_URL = $UavVideoUrl
 $env:ATOMORI_UAV_VISION_URL = $UavVisionUrl
 $env:ATOMORI_UAV_FLIGHT_URL = $UavFlightUrl
 $env:ATOMORI_MISSION_PLANNER_URL = $MissionPlannerUrl
-# A8 video is relayed by the car gateway to http://192.168.50.3:8870/stream.
+# A8 video uses the H100 device directly; pass an empty UavVideoUrl for the legacy car relay.
 # Leave OV9281 and flight sources unconfigured until explicitly requested.
 node (Join-Path $backendPath 'src\server.js')

@@ -4,9 +4,9 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>UAV-01 Mission Planner 实时遥测 · Atomori</title>
   <link rel="stylesheet" href="console.css?rev=20261010a">
-  <link rel="stylesheet" href="uav-details.css?rev=20261010b">
-  <script src="api.js?rev=20261008a" defer></script>
-  <script src="uav-details.js?rev=20261027mpflight" defer></script>
+  <link rel="stylesheet" href="uav-details.css?rev=20261029retained">
+  <script src="api.js?rev=20261028imu" defer></script>
+  <script src="uav-details.js?rev=20261029retained" defer></script>
 </head>
 <body>
 <div class="flight-shell">
@@ -29,14 +29,15 @@
         </svg>
         <div class="angle-values"><div><span>横滚 Roll</span><b id="roll-value">—</b></div><div><span>俯仰 Pitch</span><b id="pitch-value">—</b></div><div><span>航向 Heading</span><b id="heading-value">—</b></div></div>
       </section>
-      <section class="flight-card"><div class="card-heading"><h2>飞行状态</h2><span id="connection-badge" class="status-badge">等待数据</span></div><dl id="flight-state" class="flight-state"></dl><p class="card-note">状态过期后自动清空，未解锁与断连分别显示。</p></section>
+      <section class="flight-card"><div class="card-heading"><h2>飞行状态</h2><span id="connection-badge" class="status-badge">等待数据</span></div><dl id="flight-state" class="flight-state"></dl><p class="card-note">过期或断连时保留最近有效状态并注明年龄；最近状态不代表飞控当前状态。</p></section>
       <section class="flight-card"><div class="card-heading"><h2>核心遥测</h2><span>独立校验有效性</span></div><div id="primary-metrics" class="primary-metrics"></div></section>
     </div>
     <div class="flight-bottom"><section class="flight-card"><div class="card-heading"><h2>飞控健康 / 起飞前检查</h2><span>飞控上报</span></div><dl id="flight-health" class="flight-state"></dl><p class="card-note">人工检查项不能由遥测确认；未收到检查结果时显示“未上报”。</p></section>
       <section class="flight-card"><div class="card-heading"><h2>状态消息</h2><span>最近 30 秒</span></div><div id="flight-alerts" class="flight-alerts">等待飞控状态消息</div></section></div>
-    <section class="flight-card telemetry-card"><div class="card-heading"><h2>详细实时遥测</h2><span>独立检查接收时间</span></div><p class="card-note">相对 home、局部高度、海拔与测距采用不同基准。接收年龄表示数据到达本机后的时间，不代表端到端延迟。</p><div class="telemetry-scroll"><table class="telemetry-table"><thead><tr><th scope="col">参数</th><th scope="col">当前值</th><th scope="col">数据状态</th><th scope="col">本机接收年龄</th><th scope="col">MAVLink 来源</th></tr></thead><tbody id="telemetry-rows"></tbody></table></div></section>
+    <section class="flight-card telemetry-card"><div class="card-heading"><h2>详细实时遥测</h2><span id="telemetry-count">独立检查接收时间</span></div><p class="card-note">相对 home、局部高度、海拔与测距采用不同基准。接收年龄表示数据到达本机后的时间，不代表端到端延迟。</p><div class="telemetry-filters"><label>分组<select id="telemetry-group-filter"><option value="">全部分组</option></select></label><label class="telemetry-search-label">查找参数<input id="telemetry-search" type="search" placeholder="参数名、通道或来源" autocomplete="off"></label></div><p id="telemetry-extension-status" class="card-note">各项分别检查有效期。</p><div class="telemetry-scroll"><table class="telemetry-table"><thead><tr><th scope="col">参数</th><th scope="col">当前值</th><th scope="col">数据状态</th><th scope="col">本机接收年龄</th><th scope="col">MAVLink 来源</th></tr></thead><tbody id="telemetry-rows"></tbody></table></div><p id="telemetry-empty" class="card-note" hidden>没有匹配的参数。</p></section>
+    <section id="telemetry-sources-card" class="flight-card telemetry-sources-card" hidden><div class="card-heading"><h2>遥测来源与机载诊断</h2><span id="telemetry-sources-count">等待来源信息</span></div><p class="card-note">展开查看实际收到的消息与原始字段。过期消息仅供诊断，不作为有效读数，也不代表传感器自检通过。</p><div id="telemetry-sources" class="telemetry-sources"></div><p id="telemetry-sources-empty" class="card-note">尚未上报遥测来源。</p><div id="flight-execution-diagnostics" class="flight-execution-diagnostics"></div></section>
     <section class="flight-card connection-card"><div class="card-heading"><h2>Mission Planner 数据链路</h2><span>仅接收</span></div><p class="connection-note" id="connection-note">等待另一台电脑将 Mission Planner 的 MAVLink Mirror 转发至本机 UDP 14551。此页不会发送解锁、起飞或参数修改命令。</p><dl class="flight-state"><div><dt>转发来源 / 飞控 ID</dt><dd id="mirror-source">尚未收到转发</dd></div><div><dt>有效 MAVLink 消息</dt><dd id="mirror-count">0</dd></div><div><dt>最近响应</dt><dd id="last-response">—</dd></div><div><dt>刷新状态</dt><dd id="poll-status">连接中</dd></div></dl></section>
-    <details class="flight-card raw-details"><summary>查看本次接口响应</summary><pre id="raw-flight">尚未收到数据</pre></details>
+    <details id="raw-flight-details" class="flight-card raw-details"><summary>查看本次接口响应</summary><pre id="raw-flight">展开后读取接口响应</pre></details>
   </main><footer class="flight-footer">Atomori · UAV-01 <span>真实遥测 · 缺失数据不估算</span></footer>
 </div>
 </body></html>

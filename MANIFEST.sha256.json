@@ -1,0 +1,1230 @@
+{
+  "created_at": "2026-10-28T19:52:58.781695+08:00",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 43,
+      "sha256": "6e53b7d375cc44c8736a6e4186caca0c249f566c3144f737e2b9907ba360cdc0"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 456,
+      "sha256": "111430f32a3a0f6090539c8c366f189a91e82913253ee49eeb65fa267975d32a"
+    },
+    {
+      "path": "README.md",
+      "bytes": 8555,
+      "sha256": "6d774c19361fb9c04679cc215eeba5fe5c5e4d364fdc5f0eda4c1e5f71987fa9"
+    },
+    {
+      "path": "records-browser-check.png",
+      "bytes": 468935,
+      "sha256": "5a91a6bc1821545452a9c923e09f8735fb96024f0825a30188ac98329ec29824"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/AGENTS.md",
+      "bytes": 13163,
+      "sha256": "e2d79dbc10b82d250e6b28fe050e6262e11d6367baf010070f7eb6d3329ec41b"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/GitHub代码接入结果.md",
+      "bytes": 15431,
+      "sha256": "0bd385c79deceafd78ec54d1f0179e9ebb32450f36d1080ffd561fa7ac73513f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/README.txt",
+      "bytes": 2470,
+      "sha256": "7b37e2c9c0cd8b9b5d2b3956df5ed5d6a7ced7da413f44d4531972565fb48472"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/acoustic-camera.png",
+      "bytes": 2483714,
+      "sha256": "282ee32144f9b0c02685fbf6a4670fbaebdf1a0ad3154a944b77b864fc8f1f1f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/coordination-uav.png",
+      "bytes": 88033,
+      "sha256": "025557338cd9b8c4a6462eac49da6d2f7c4c1cd03bb79c2296f91a16a8e244d9"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/coordination-ugv.png",
+      "bytes": 63409,
+      "sha256": "e51102cd7274f2853aeb92f585b38dd19d680f41083627b2a7acac27eccae1c4"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/defect-camera.png",
+      "bytes": 2362347,
+      "sha256": "a65f18973047d906f07fc38def44069a447d6d18699228a95c628571279866c9"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/docking-camera.png",
+      "bytes": 2273415,
+      "sha256": "7c86dd0d6a2e1bc9ef3625dfae69d52e378c03beeb9f6e7919f7264771e2e558"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/instrument-camera.png",
+      "bytes": 2170080,
+      "sha256": "c7c914ea08cd4f1956c5ecbfe7d345a90be7a23399126791ae8fb8082280080b"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/spatial-twin.png",
+      "bytes": 2179400,
+      "sha256": "751b03061f8fee4fcb26e80964a2a1ed07f80a887dee0b94a816e2a5f0de8eb7"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/thermal-camera.png",
+      "bytes": 1805773,
+      "sha256": "54cc05c377ff87069dd5155636aca90be7ab95c4021d0dd7bae4631c1125deb0"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/tunnel-overview.png",
+      "bytes": 1998772,
+      "sha256": "e73a8af2a22087712db79bec819f6d577f310718f06fedc736899d147530c953"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/uav-camera.png",
+      "bytes": 2281996,
+      "sha256": "9a0d9a2d31da0193922bcccf69fac55fa42f23c8b68e7a5725975657a3ab540b"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/ugv-camera.png",
+      "bytes": 2546716,
+      "sha256": "6ee515955076571b622fbcacc51b0a91997944e4a214586070f242ed3da2c1c8"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/generated/console/ugv-lidar-map.png",
+      "bytes": 12616,
+      "sha256": "8fd132eebb62915fe04344c42b8e05bba67d030ee970879bd363d96011453689"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/maps/ugv-reference-20261027.png",
+      "bytes": 104631,
+      "sha256": "4cb0a9667f3807c93fb7854515debab5532656918a25ca90593fe7f9615feda5"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-B4gAK-TO.js",
+      "bytes": 629078,
+      "sha256": "4dfa8f450afb2658e769523436e6a28b06fabfa381dea57ab264b8af25489683"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BG2AZ-RU.css",
+      "bytes": 9846,
+      "sha256": "965189d28ee4aba0cef29c63f5431d1648a6d93d6612e84ed0da3c6964894426"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BMDxDUS9.css",
+      "bytes": 13321,
+      "sha256": "c00cd42e98d9332d678dc97401b3568ede4e2453bcf3ce231abfb4becb1e7d5f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BMeJw1Fg.js",
+      "bytes": 629019,
+      "sha256": "e056bc2f0025744210ef3a05965a42947b072468dc1bc64d5f693c1b2c730842"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BREYx123.js",
+      "bytes": 626299,
+      "sha256": "282ec504f231ec2234d0ca38b7c43d53d38eff6eda55ee764dfe1e6f25065413"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BYUcAvzd.css",
+      "bytes": 9655,
+      "sha256": "4c898be77df04eb00345c6fb779f4d8da179feb0965afa090d5f3ab7ba75b613"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BZcHx_Sy.css",
+      "bytes": 9717,
+      "sha256": "739a38ab5040b6e5b8a929876d1ad9a88f6f7f009a04449dad148fa95cbd76ef"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BlHFzdPc.js",
+      "bytes": 628767,
+      "sha256": "8fb7521cca626f4e8dc8ccf6a7609092a0be4c2981b0fa834b546f327982af04"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BnnzGwFs.js",
+      "bytes": 629046,
+      "sha256": "d3df1606d85b5baa83a5b247a4495ef81ca935f235ac95a713bee9fc873908fc"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BuBs3XjU.js",
+      "bytes": 629019,
+      "sha256": "e056bc2f0025744210ef3a05965a42947b072468dc1bc64d5f693c1b2c730842"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-BvYXQMRo.css",
+      "bytes": 13275,
+      "sha256": "ee49d245f4b0d110aad0a9d5fc6ffd78083c8834be05150538689e2f9f63b05e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-C1zFVeW6.js",
+      "bytes": 629020,
+      "sha256": "4f77f038bf9d734e5257300bc2c42eaa346c799c1a418082504d30354477033a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-C6koqqmb.js",
+      "bytes": 629552,
+      "sha256": "ce5a47715da6cb73804501fdaa9aa354ff07b40f9f9991f83509bfbb92cc8c2d"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-C7C1btWP.css",
+      "bytes": 14892,
+      "sha256": "00e3366f0240814bd22b57bfaefe2e68534ae0a985ee7f335fa100847b90fd1d"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-CYFB6pKW.js",
+      "bytes": 626477,
+      "sha256": "85a813bd00bceea81160368a41ee74e51cfbd971854467e1eb95b3e65f70dc22"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-CpxYe-ic.css",
+      "bytes": 14361,
+      "sha256": "2bbefc7fce955f6b292e70e6ba5eb218604d3de6c81f1f6973564074c34865e9"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-DeSaFUTk.css",
+      "bytes": 12857,
+      "sha256": "6829862cbdfe6779ffd688b6769609c1c17592c5a89cf7eeded3cee333795a11"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-DhQS0iAo.js",
+      "bytes": 625282,
+      "sha256": "8b314c2e0c3fd07a2f75d2f61c2bbbd302f032de558bef040f3e8cde547cf64b"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-DidcfUWQ.js",
+      "bytes": 625539,
+      "sha256": "35d5dd155c868d650b00832999c5400a0af489f0e93d43a39bc3a45bd113d145"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-DspZ9q_V.js",
+      "bytes": 625282,
+      "sha256": "8b314c2e0c3fd07a2f75d2f61c2bbbd302f032de558bef040f3e8cde547cf64b"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-DtmkyeFI.js",
+      "bytes": 625292,
+      "sha256": "8a076cbbb0abc3953b178cef9d10bcf16142248a5a0872cb46ca5d3c7cd4e228"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-K9PxMJvQ.css",
+      "bytes": 9330,
+      "sha256": "ce2b6765ca63cb8f7026122458721dc9fbe625740bff34cc4fc3ca4eb40be3f1"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-N2yPa9zI.js",
+      "bytes": 625185,
+      "sha256": "8a6023e8eb82d75c215701334e1424816907b40e0c81776a8c7363dcd47badc7"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-YHLFUSbm.css",
+      "bytes": 14463,
+      "sha256": "c0797a70a5d7949fea937c6297bbb82642306043b28cdcf1912b08f3cd792f44"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-YPRI-0bA.js",
+      "bytes": 629026,
+      "sha256": "73f4ec3fb8c00b36300ebd74fa2bd892a6ed1176958eaf20ca484c208ca3ed6c"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/assets/index-bVSROFjD.css",
+      "bytes": 13335,
+      "sha256": "01ef2328ed0ed349ec62a90aaeb595d6b850ebe564e0c484757a933c473a7585"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/gesture_recognizer.task",
+      "bytes": 8373440,
+      "sha256": "97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/vision_bundle.mjs",
+      "bytes": 156137,
+      "sha256": "a6efa5da7710306830c35f623c81bea99e72705fdb10cbc4704408d6690f57db"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/wasm/vision_wasm_internal.js",
+      "bytes": 344564,
+      "sha256": "3f10b42c434d2b05d35e748005caf357ec1bf93e7300130ea3a06d8635eed720"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/wasm/vision_wasm_internal.wasm",
+      "bytes": 12997248,
+      "sha256": "782eda3ec1f414fdb4f1d66a8b59093eb4d5ab437e06117796abf05962d68eef"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/wasm/vision_wasm_module_internal.js",
+      "bytes": 344598,
+      "sha256": "842b5316ad46da294584f52ae158e3e013b9dea6dbca934bac8abcdcc31495ef"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/wasm/vision_wasm_module_internal.wasm",
+      "bytes": 12997272,
+      "sha256": "ee03b14a878e6c3c053a1bfa62e166dc45244be54dc0bbe61c578f710b771f6a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/wasm/vision_wasm_nosimd_internal.js",
+      "bytes": 344358,
+      "sha256": "84908d1d3aab5b2e73bd2815540e3abcea2b3d9620d2eff67b339486dc74612f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/gesture/wasm/vision_wasm_nosimd_internal.wasm",
+      "bytes": 12168316,
+      "sha256": "b802041d105876865d6a0806f2ff7c4419a7f1b80bc01340fe36e759c2030011"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/index.html",
+      "bytes": 7117,
+      "sha256": "2492ba78772c8ca21f79396eaae2447ee094027e287944549cc7138950be6f54"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/ugv-studio.png",
+      "bytes": 3356378,
+      "sha256": "d6c5f35c786126110a6dade8c5c1be81ed4b2a96cb685e4ed0c02bc938e60e0a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/assets/product-viewer/ugv.glb",
+      "bytes": 124121768,
+      "sha256": "2e5dfdee3a12019543d99d02628afd2549c9278e9e621b8d3ddf6095349cf3a2"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/.gitignore",
+      "bytes": 37,
+      "sha256": "9d22130bf76cff70f9c74cd76213ee10a48fbb3052e70bb9634da5d26e78c46e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/FLIGHT-DETAILS.md",
+      "bytes": 6312,
+      "sha256": "b9e608f7c5f286b3d1a1168a297a86c52e4e4bec9fe1ac109f968e81cf28cb7a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/README.md",
+      "bytes": 32053,
+      "sha256": "322f20e0bb7775eb3a74633dce546ff4e6fa1d655e6bf1f36f20d0ce1f5c8f05"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/UGV-PARAMETERS.md",
+      "bytes": 10398,
+      "sha256": "abe9a945b32c77c6ee43ae60fcd6ac198dbdc71e7ea685b1f7c8568420b41c92"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/data/records.json",
+      "bytes": 4329,
+      "sha256": "a0a041937e5f564674f12371ad19737962cb711e4e4366bee9898f032f103fe0"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/browser-flight-check.mjs",
+      "bytes": 5477,
+      "sha256": "8cfb38be0301d0f297121a9d9592e63642f4f7c6c0f293b4809bfaa0a9aa4e92"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/browser-records-check.mjs",
+      "bytes": 25792,
+      "sha256": "68a878e96252077b41ab0f0dc83185b567ceb878f5bf9592f36e954adcb4ccab"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/check-real-only.mjs",
+      "bytes": 6797,
+      "sha256": "a254db01ae93844d111c5c1797786c0bba9bd0db71525a1a3c88a0f892a32c8a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/check-relative-position.mjs",
+      "bytes": 4648,
+      "sha256": "612157052c1aecea64cbc0b4747a8aeecc4e2563a195aa08a759d3a8830a4e80"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/check-uav-live.mjs",
+      "bytes": 1732,
+      "sha256": "6725533eac7960c34174874d98d7788bf1ab2ff196216b5a835244d74f0e48fd"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/check-ugv-live.mjs",
+      "bytes": 10901,
+      "sha256": "26f843d35479d7d97d635776b51c1ac26f492572d9d55be55441e136891d9c9d"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/check-ugv-parameters.mjs",
+      "bytes": 12817,
+      "sha256": "c99d884837e3637c7097eda51f7d9c367adf97b813f549488bad8d39d470356a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/dashboard-live-fixture.mjs",
+      "bytes": 4182,
+      "sha256": "3f811eba1b055a2fb8975b97502ac14ad5b6175e436f62afae329789709249b2"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/live-fixture.js",
+      "bytes": 2033,
+      "sha256": "67e293a341f546627ee3ff24fb2057503e929a0eb31f8554de42b8215129f7b8"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/dev/preview-dashboard.mjs",
+      "bytes": 1328,
+      "sha256": "6ccbfeaeba9ba1f128ff1b2abb84b4b20ab8139d0bb6994e7d27a4ff3013ba63"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/README.md",
+      "bytes": 18825,
+      "sha256": "eff321ee9f87f65df04a81a3bfea27ecfd39c29e48e0695e6c37591cea64429e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/atomori-telemetry.service",
+      "bytes": 972,
+      "sha256": "caf26ea1e449f77645c59d3f588e89645bd8630bf81f48de06cfada2a1f88c58"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/flight_status_http.original.py",
+      "bytes": 20186,
+      "sha256": "d28fa941167b70bd1ce879450a2e1b42c36e97d5404a845c1746376b5e020f36"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/flight_status_http.py",
+      "bytes": 32141,
+      "sha256": "f8dd98b8832efe7082ce26e2fed37451a64fd3ae04bedab577d6602dcbef0820"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/flight_telemetry.py",
+      "bytes": 29901,
+      "sha256": "122f6fd26434bbe40e59fed228dfbfe255cea537a03b578f692e9805bf23a0dc"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/mission_planner_bridge.py",
+      "bytes": 14696,
+      "sha256": "c1ae7ee1341343eb1cf80feb3b9a819a71ee49e4a7ed93768a40abe9f28ed98e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/probe_topics.py",
+      "bytes": 2855,
+      "sha256": "b3b8dd08df5cbcb80054825541fa057bcaa84afda52a79262ab66e873b2aa956"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/requirements-mission-planner.txt",
+      "bytes": 19,
+      "sha256": "09581b1a4475c018ab5ca9f54d5bfe3120840231e5e6208aa7d2ee1c960f5f7f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/test_flight_status_http.py",
+      "bytes": 17039,
+      "sha256": "2de866514697cc2fcaae29f4f962ae922527c4812fc35cadc45be89e2753ec69"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/test_flight_telemetry.py",
+      "bytes": 13570,
+      "sha256": "1cc8d3ce0911797765001cab2469a7dfd1562cf0043a1e4f54219fe9033f428b"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/device/test_mission_planner_bridge.py",
+      "bytes": 6073,
+      "sha256": "125923e88064dcd2aacecee7103f4dc3e630e7f5836100301e3f1f6ad16e9ecb"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/enable-mission-planner-network.ps1",
+      "bytes": 2458,
+      "sha256": "3578c1372d9f530904a0ce5a12fe33777bc52e6e808860cd195efb6fcef56b22"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/enable-mission-planner-udp.ps1",
+      "bytes": 1165,
+      "sha256": "e23eaed8ecb6957c7df9169e1104953d64eb3cbd842093cc36c19c5199b499f5"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/package.json",
+      "bytes": 214,
+      "sha256": "37ee554a4c2977deac9f9f8d0d19d2845b87d7e7d8c39d150e9b7ccb09300fcb"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/app.js",
+      "bytes": 17361,
+      "sha256": "83adc1bc505d5c356b6f85c0646a370b8f1d632e505eb0aadb84679877fd60e0"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/catalog.js",
+      "bytes": 3161,
+      "sha256": "6c4b6724429c5eab62bc128dc33d939e8758dbcf3d0eaee3b15dc94ec09f0506"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/flight-details.js",
+      "bytes": 8927,
+      "sha256": "ea26b878b03125f1230a37c601ff7a2b3735c5a592fe8b1dd4962bcdc30edbf4"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/frame-timing.js",
+      "bytes": 2730,
+      "sha256": "8c9d1e777a6a50d8cbbfd807b58cc4a4a58147d8fb8442f1c295fb8c2c0227e3"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/integrations.js",
+      "bytes": 926,
+      "sha256": "cf133ec6cd5cada6f0ec733660d5b336520d586a2df232689123d0d1f68b41f7"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/last-valid.js",
+      "bytes": 2635,
+      "sha256": "557c89251ba85aa0e543b478efc1ec2c6587f7e6c215d7211c02b64613534da5"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/server.js",
+      "bytes": 1318,
+      "sha256": "bb428f12abc408fe2f8cdbd610f88234ef8e10fa98534ce28fc23ee552305d0e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/store.js",
+      "bytes": 1452,
+      "sha256": "bfc936775e2dcf846c3f6881441c71aaccec519776740735f4e8f85d223b57cb"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/ugv.js",
+      "bytes": 10926,
+      "sha256": "f4d51e8c903af503f8a3b30d48cde99b959de031a8d0bc1984b37b39d773c7c7"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/src/upstream.js",
+      "bytes": 32592,
+      "sha256": "00a221df9af395d5a0dbf6101d2bc8928a9ee64a6e36b8230057c91fe2b7f174"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/start-connected.ps1",
+      "bytes": 943,
+      "sha256": "efac5a7fc9c3db97073abf66834a7ff53cf696f9b2fa8fd2227f4ad00fe7e9ee"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/start-mission-planner.ps1",
+      "bytes": 1269,
+      "sha256": "98d3c1034bb27992fd914764d1110568b9ab0cb1a7aac2fafb982d976063f6ea"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/api.test.js",
+      "bytes": 3326,
+      "sha256": "4687f80e6e549355b449dc4af74e66faeda8bf60c6ca43fcfdb8578356026e87"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/continuity.test.js",
+      "bytes": 3532,
+      "sha256": "edc61acf6d421e42ef5e70618918a8112fb80b3d27e392d38584f8f88209d3f1"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/dashboard-records.test.js",
+      "bytes": 3250,
+      "sha256": "05d840e3a92b9b03f16bd33573982c45fc266828e383af5ffa9b21f31b551a10"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/flight-details.test.js",
+      "bytes": 10270,
+      "sha256": "e2bd8332dd7b08c5555953c0de22d104908d09a97df4fe4d58fe35b08df9a3d4"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/frame-timing.test.js",
+      "bytes": 4201,
+      "sha256": "e4a5f9465ab57d10f9b6b4cecb4237b182bd7bad19f75bc710445a4894f8afe0"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/last-valid-backend.test.js",
+      "bytes": 10910,
+      "sha256": "610f73d479321965d303898b7320ce551ff29cc8b817a427bcaee1b011c2fab1"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/live-freshness.test.js",
+      "bytes": 4346,
+      "sha256": "8e886127da5d49add6987af41181879a8f8b29facc8b703f2783eb505d00d0d8"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/media.test.js",
+      "bytes": 8573,
+      "sha256": "8ad4caa8b04103ec1cbc8c776a5f1da31c635d0c04cb7e8a1d413b8fdc1886b5"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/mission-planner.test.js",
+      "bytes": 4157,
+      "sha256": "82fe2552c8c0fd2dd7588e42950c7cadad857e6699eb3db4495c41fefe0b9ae6"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/records.test.js",
+      "bytes": 12506,
+      "sha256": "32c59fede3dc81ef26f5f4ca2310de6325dcce18e1e05ae6d2d1905c1b40d19a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/relative-position.test.js",
+      "bytes": 2447,
+      "sha256": "1bdca0e78caefdef2443b7b35d36893cc241b355bb30fa89e8e1dd25a022b9fc"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/sound.test.js",
+      "bytes": 3491,
+      "sha256": "6adb2ae1ebcbbd2ba743d7a343a836afb65e7a0ec01439bcd8a3a2aefec07fcd"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/static-viewer.test.js",
+      "bytes": 2358,
+      "sha256": "92fb62905f298ed9626dbdd535a754c0b30c97bb8ba6bb45d5297b555a17cd87"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/telemetry-display.test.js",
+      "bytes": 6461,
+      "sha256": "ae306c621fb4c03232811c655247ccf41a1da51181c519f11c9fb1e742ec9e4e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/telemetry.test.js",
+      "bytes": 7117,
+      "sha256": "de172fd6524bfff502422ea1315090375d3bbc8f327548e1d1748dd929b5b895"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/uav-details-display.test.js",
+      "bytes": 15013,
+      "sha256": "02e04b4eaa37d472ddf52e651d11a7f292f718ea4926923ee800b1e1f43c439d"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/uav-source-isolation.test.js",
+      "bytes": 6345,
+      "sha256": "53614db3c35dbf1d99f95241cf0b16f8659d11d570308a6d4714ac1abc12c9d8"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/uav-video-gate.test.js",
+      "bytes": 4877,
+      "sha256": "c66e8429dc1670b87e2c7159f01c32a595d72dd144bcee94e4da62cb2845da11"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/ugv-battery.test.js",
+      "bytes": 5802,
+      "sha256": "e0a91af9377d2fbf629fab908f29318cbfca86fc381a2ad22cba059f957ed9b5"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/ugv-details.test.js",
+      "bytes": 7074,
+      "sha256": "bf086f73a8ce33422777d4a224140044e617e5788dd152c9d31cc0b600a03f67"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/ugv-display-history.test.js",
+      "bytes": 7986,
+      "sha256": "5df6483633650a144204e355dc70c166d61a1b2b107a9d2d1a00e54a919d37d4"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/ugv-sensors.test.js",
+      "bytes": 6862,
+      "sha256": "128c675ce02661b0cc836d43b494f252224c20d422a1ed00e5afb43885143ab0"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/ugv-video.test.js",
+      "bytes": 19327,
+      "sha256": "29eef9a1acca56d51b346af58d3fcefbd589914f73bebd2d434177efccdeb0f9"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/ugv.test.js",
+      "bytes": 4458,
+      "sha256": "86c3c24b1b190e7426f39603893c79e9dde7b77a1a498c6cf7f21e330d33375e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/backend/test/upstream.test.js",
+      "bytes": 6895,
+      "sha256": "74fb80bd03d52fb62e981f0e0e2bd2d0671b029092f4256547f2e8bd445ecb0a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/api.js",
+      "bytes": 2284,
+      "sha256": "7ae8b1288605e19143236f1835289cfd9bd218c12478dc45d0020bff963c9e20"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/console.css",
+      "bytes": 38011,
+      "sha256": "99e7c46e0547003a560cdd1c3a4ae738ece013e7fdd1f08ddeabb7a4c5d8ff2e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/console.js",
+      "bytes": 33091,
+      "sha256": "a77fe0ff40454ca30199b12540bbd7bc78c0b2e02e00c5cfed3b76409c1d6bc8"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/continuity.js",
+      "bytes": 3890,
+      "sha256": "bd1ba218c54ef8639753617e19a4c741c6a06fcc8b2b8c7b5a885149527e4f72"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/coordination.css",
+      "bytes": 3548,
+      "sha256": "7eafbaa368a269108cfd274eaa217b47186ee259615efd37833afef008185fc7"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/corridor-overview.css",
+      "bytes": 7681,
+      "sha256": "10653ca234d6236cec0cc40d87543c3e8c2a1eb18d52e7f16672e48597433c37"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/corridor-overview.html",
+      "bytes": 4331,
+      "sha256": "51b728685d985771e1ee306a8b213b4d03386fd6d2a69163b2deca19b1b2a0d1"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/corridor-overview.js",
+      "bytes": 7357,
+      "sha256": "5dcb8970e5f1506e3c3407a4f2c8dba02b57b33a52875198df9d01015bcd67d3"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/dashboard-theme.css",
+      "bytes": 27929,
+      "sha256": "e26ba67715d58b7102215bd243bd5754c934e76e0279665b413add8884870890"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/dashboard.js",
+      "bytes": 7475,
+      "sha256": "68c337e24934ad85b8e725e956437275227b4a0a533acb6301a2c52a139a619e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/live.js",
+      "bytes": 66744,
+      "sha256": "83ab3794a599fedae722980b4bfbbb442b33fdb666c63c9ae48d4026c8f87bb5"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/product-showcase.css",
+      "bytes": 3093,
+      "sha256": "52e2e3492993378e4400be97bede7faf19c2c123bd608a48aadc3ae6e25239bc"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/product-showcase.html",
+      "bytes": 458,
+      "sha256": "4f9b51d820c373f9c514037237144a48e9b461d92e7182be3fb57a724499d3ee"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/records.js",
+      "bytes": 17108,
+      "sha256": "659516762dcbe78a6306e2f99a6397f76d22bb3c1d6f80a033f85fe8c3641099"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/tests/uav-details-browser.mjs",
+      "bytes": 9312,
+      "sha256": "57880265a69647e8df8775dae66a1d100a804b86b5e2f5533cb4e7305de768bd"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/tests/weak-network-browser.mjs",
+      "bytes": 5177,
+      "sha256": "451c34ee36aa7ff6c7289533fe2bf917a4c80e14a3f985212f3047f1c77fc8b9"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/uav-details.css",
+      "bytes": 8736,
+      "sha256": "130b6ff8da8a11860371ea391e109e2f081f16f0cfec8768e1ef484bd8112be8"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/uav-details.html",
+      "bytes": 7476,
+      "sha256": "9d613ead77d7bb7bfdac1fd02f94fb6542eae002fc596517c1a2730ddac3cd5b"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/uav-details.js",
+      "bytes": 35961,
+      "sha256": "198e9a9bbfa9ae64cfe872792ea286b125a617b7b397fc88c3505d33a9d0c4f0"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/ugv-battery.js",
+      "bytes": 5452,
+      "sha256": "97bcf85245d7f79ac39031bb694a9f14740f6be5c8ca1dc905f26ccc3f367625"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/ugv-control.css",
+      "bytes": 936,
+      "sha256": "d1ac44417978984c1e0f5e9c2c2ff1a7a18869f091ae734b9df2146583e3e5f9"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/ugv-control.html",
+      "bytes": 1181,
+      "sha256": "e8956d59e4018958c87419059e79e8d588894c626d1913f8ee7d7d3c5a22b4bc"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/ugv-view.js",
+      "bytes": 34493,
+      "sha256": "50dc6cd93d927bbde593c88387c8c6a306f4db743446bdf8094ff39779b3e06e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/产品展示接入.md",
+      "bytes": 2156,
+      "sha256": "8f5db900835b46dbae7bd3452562a4c4a93d3a9d637cb2dd4f69e8c43f5d0325"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/marp/巡检控制台.html",
+      "bytes": 15523,
+      "sha256": "c0f46d6fcf07c22dbbbcea7554ff17a7b5f1400608492b1f502688bc6aa787aa"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/README.md",
+      "bytes": 6247,
+      "sha256": "769e1729cac6297806df5a9a3d8192890702bb6078dc0b17f663a9e19825e71a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/build.mjs",
+      "bytes": 736,
+      "sha256": "ab196998f05863f0743a9f5ccf858129b99bd856ddbfbc0fb88adb26e76c341f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/gesture/control.js",
+      "bytes": 6481,
+      "sha256": "213da048364c2bb314b4181474de0a5cf0d86a724150a655f97a89ab7db6d045"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/gesture/gesture-gate.js",
+      "bytes": 2402,
+      "sha256": "903c73ef7af8aa184a03ae11be33c89a732edd1f10d8a183a10cf39ee7b30a29"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/gesture/hand-pose.js",
+      "bytes": 4541,
+      "sha256": "6f32ff91de8f1dd1c6cc765b9408a8d9c0e7dfddf612fafe381470256a15c323"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/gesture/palm-motion.js",
+      "bytes": 1823,
+      "sha256": "4dcccde194cede7604dfb3bedbee089f7d3bd3200433aa20b47ea5ad807b48c1"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/gesture/two-hand-motion.js",
+      "bytes": 3891,
+      "sha256": "102d063be78b500611ef91d886345f0282f46aa4e547e314636d97f9c599e115"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/index.html",
+      "bytes": 7062,
+      "sha256": "8b8fec959ac90a609c96281f0b391b9ee35766c9ccc80bcb01ef3794e1310e05"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/layouts.js",
+      "bytes": 1433,
+      "sha256": "4b10fe84809e3b75e6159c7c56feec80e51fe487dc8b1d0f1bb875d373632204"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/main.js",
+      "bytes": 22843,
+      "sha256": "d42d0214b418c7f98636acc60813a6b9a06703bd678c1e5b74b9140c584aea12"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/package-lock.json",
+      "bytes": 36296,
+      "sha256": "7156e05fbc1265b058be59febf7859610bf50ae9ebac3cf806ad2e19c4dfcfaf"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/package.json",
+      "bytes": 283,
+      "sha256": "042382354b36a28d6c4b119aef93cee154459d61bab6a66cd9fdf2b1948af286"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/gesture_recognizer.task",
+      "bytes": 8373440,
+      "sha256": "97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/vision_bundle.mjs",
+      "bytes": 156137,
+      "sha256": "a6efa5da7710306830c35f623c81bea99e72705fdb10cbc4704408d6690f57db"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/wasm/vision_wasm_internal.js",
+      "bytes": 344564,
+      "sha256": "3f10b42c434d2b05d35e748005caf357ec1bf93e7300130ea3a06d8635eed720"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/wasm/vision_wasm_internal.wasm",
+      "bytes": 12997248,
+      "sha256": "782eda3ec1f414fdb4f1d66a8b59093eb4d5ab437e06117796abf05962d68eef"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/wasm/vision_wasm_module_internal.js",
+      "bytes": 344598,
+      "sha256": "842b5316ad46da294584f52ae158e3e013b9dea6dbca934bac8abcdcc31495ef"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/wasm/vision_wasm_module_internal.wasm",
+      "bytes": 12997272,
+      "sha256": "ee03b14a878e6c3c053a1bfa62e166dc45244be54dc0bbe61c578f710b771f6a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/wasm/vision_wasm_nosimd_internal.js",
+      "bytes": 344358,
+      "sha256": "84908d1d3aab5b2e73bd2815540e3abcea2b3d9620d2eff67b339486dc74612f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/gesture/wasm/vision_wasm_nosimd_internal.wasm",
+      "bytes": 12168316,
+      "sha256": "b802041d105876865d6a0806f2ff7c4419a7f1b80bc01340fe36e759c2030011"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/ugv-studio.png",
+      "bytes": 3356378,
+      "sha256": "d6c5f35c786126110a6dade8c5c1be81ed4b2a96cb685e4ed0c02bc938e60e0a"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/public/ugv.glb",
+      "bytes": 124121768,
+      "sha256": "2e5dfdee3a12019543d99d02628afd2549c9278e9e621b8d3ddf6095349cf3a2"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/render-coordination.mjs",
+      "bytes": 5952,
+      "sha256": "77b7b3c376f39cddd2a63f1486835aa80d17f7acb2ce052c67a2e4bc590ce003"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/style.css",
+      "bytes": 15220,
+      "sha256": "9d60469126e94b1499ca4aa33ea06089ce1fb050b4c966c3af20cd5b373c8df1"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/test.mjs",
+      "bytes": 1195,
+      "sha256": "49a1fdac2a8895a41199bd2f61ef8442fc84475fed21a863b279026f071be9bb"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/tests/model-layouts.mjs",
+      "bytes": 2432,
+      "sha256": "d1432a2394694881ce632228aff4ed98f5305cb2f81ecba0e170078c52f1b7c3"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/tests/test_camera_lifecycle.mjs",
+      "bytes": 6897,
+      "sha256": "4893cb9b6349022b203513ae3a5314017593688159b515d71ed00fd66f731534"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/tests/test_gesture_browser.mjs",
+      "bytes": 3691,
+      "sha256": "e59a57b3b5e3512f19881a0496cac30255b987f04ed503feefd6b8a6fee7d084"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/tests/test_hand_pose.mjs",
+      "bytes": 5137,
+      "sha256": "1cc63e7667ecd3105d9268398c2db3b7e343f95725137eb5caad93d4780d668c"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/tests/test_palm_motion.mjs",
+      "bytes": 2149,
+      "sha256": "e6f514376c1f9e55bcee509feb9bc1bd960cc7ac82a9d763dfc35ba3a462b8a2"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/tests/test_transitions.mjs",
+      "bytes": 4782,
+      "sha256": "e6fcc61d0bab0b0b5eebefdbf30b5f10e1a3008775f5eb76aeb8741156458f52"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/product-viewer/tests/test_two_hand_motion.mjs",
+      "bytes": 5191,
+      "sha256": "e563f56a57bf193dc6ec0858f8f29d549a8bfe4b1c1c8fd0417cbe33a6cd2d77"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/vehicle-ui/README.md",
+      "bytes": 3904,
+      "sha256": "7eb0062dc6595440fa3e3b1c6ac9e2a9dcd1852d1dfa639c54b7e86cb4f3747f"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/vehicle-ui/a2-camera.html",
+      "bytes": 1604,
+      "sha256": "a459bf987c1935b3f2480d7201388a6ec70728d0509f2185c6c5f70d276fa709"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/vehicle-ui/a2-joystick.css",
+      "bytes": 3464,
+      "sha256": "b26e2dee103b90ce035cb1923e70f385645bb230a3511ea6400bbc6dcf69d806"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/vehicle-ui/a2-joystick.js",
+      "bytes": 7534,
+      "sha256": "1e758448bda8388941b7e4ea0b9a959926a54facc4aaf03ea3446f2686f0f2ba"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/vehicle-ui/remove-uav-camera.py",
+      "bytes": 1270,
+      "sha256": "71ccffa7699920ec675beebaf5adfc0e337df3bab832d5175909fa874bf88a5e"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/vehicle-ui/test-a2-joystick.mjs",
+      "bytes": 19519,
+      "sha256": "3cb0a715e216de0afbbae6bab1aaedc62fc34bbe08910f16e1bee826792f3df9"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/vehicle-ui/update-page.py",
+      "bytes": 1576,
+      "sha256": "f219da5d8a8b2156640e6c103e7fcdee013b205f82c7842f124e540f395432e2"
+    },
+    {
+      "path": "source/Atomori-巡检控制台源码/后端接入清单.md",
+      "bytes": 14116,
+      "sha256": "4a42cb4fb907209deab9e771304929043cdad28d1072db0cc76fdd32c7765404"
+    },
+    {
+      "path": "uav-connected-car-retrying.png",
+      "bytes": 103505,
+      "sha256": "9a0370d3aa50b4806a29d407de15adde8a2860d2d0593009cdbf7e934750fabe"
+    },
+    {
+      "path": "uav-disconnected-20261011.jpg",
+      "bytes": 98701,
+      "sha256": "75c429da4e526d8a38d092c9e971f2ca821eb51a2e5d18901b4ff2671671e9df"
+    },
+    {
+      "path": "uav-disconnected-current.png",
+      "bytes": 99075,
+      "sha256": "1ccf569e5ac7e6e8a231f6e529252cd2d38006bb0f601e6bc9c08b22f48516ab"
+    },
+    {
+      "path": "uav-disconnected.png",
+      "bytes": 99103,
+      "sha256": "fc12ed2a1fd3352507edfdac6c0870c1a043295feaf360467d26c6c0a0e2e6e3"
+    },
+    {
+      "path": "uav-downview-connected.jpg",
+      "bytes": 137051,
+      "sha256": "7b3afef78b5d442f5cc94afca46a76df8b5b88a1d287edfa446053890d3c4636"
+    },
+    {
+      "path": "uav-downview-fixed.png",
+      "bytes": 113614,
+      "sha256": "74502171b32becbc78a1602e39e0baec8cbef3ed8f8226f15909a09a555e18b6"
+    },
+    {
+      "path": "uav-downview-live-clock.jpg",
+      "bytes": 114446,
+      "sha256": "6a7b4d807461fe2e267efab2a21a6361f1c098deeb0690896db582b6e71be047"
+    },
+    {
+      "path": "uav-downview-reconnected.png",
+      "bytes": 105217,
+      "sha256": "b34481cbbc672437daddb4f45266aaea82be39d09aceee694565e9ce6811960b"
+    },
+    {
+      "path": "uav-flight-details-entry.png",
+      "bytes": 305247,
+      "sha256": "aeb83cb4a0d4351ffe7cc60107eda5be78ba99fda7f6c1d1d551afda1b3a314d"
+    },
+    {
+      "path": "uav-flight-details-live.png",
+      "bytes": 161527,
+      "sha256": "66fc953dcb38f186729d798d276c1af43683f9e15f8a38b6a64010e5e2dce855"
+    },
+    {
+      "path": "uav-flight-details-mobile.png",
+      "bytes": 128777,
+      "sha256": "4e9069da8a50b1119701b522e95a8688d5ae592dcc808f3d40e17e3273d05384"
+    },
+    {
+      "path": "uav-height-instrument-updated.jpg",
+      "bytes": 113768,
+      "sha256": "e11fb9238c3f7c8ef50b161e2b9ab710c1eee34e74d78729c6977fa127dda9ff"
+    },
+    {
+      "path": "uav-height-reference-fixed.png",
+      "bytes": 116112,
+      "sha256": "e099c2af0ca1a8dc3da3800c7dcd6fee65e5b5910e5d14528b074bb86d1a8f03"
+    },
+    {
+      "path": "uav-live-frame-age.jpg",
+      "bytes": 114515,
+      "sha256": "e42fae4fbf00eb7160124b01fa539a403dce48e8488fdc4e1b5a9e3ee78ea4f4"
+    },
+    {
+      "path": "uav-live-height-range.jpg",
+      "bytes": 114149,
+      "sha256": "617e8a9ea9add73e45ef7c9d0e2ee2127cd7b8f3bacdb5f9aa7f055e6dd2b831"
+    },
+    {
+      "path": "uav-live-range-verified.png",
+      "bytes": 115847,
+      "sha256": "91b8debe3cb493494bc575f0261a3ea6632056583b5e8209d83b25866b4ee3c5"
+    },
+    {
+      "path": "uav-mission-planner-mobile.png",
+      "bytes": 156329,
+      "sha256": "acadd006d6e1016f0617b149cd0aee96442010150f180974d3ba75a8c4ceeb70"
+    },
+    {
+      "path": "uav-mission-planner-waiting.png",
+      "bytes": 213175,
+      "sha256": "0fcd278976f3583ee56b07ac47daf16b69b113a45903c1b5f6c28c5530765f00"
+    },
+    {
+      "path": "uav-real-attitude-preview.jpg",
+      "bytes": 119627,
+      "sha256": "66b31333422e3c2e4045716a4a41899230202605c52c8f760bc28585d4daa414"
+    },
+    {
+      "path": "uav-real-attitude.jpg",
+      "bytes": 114443,
+      "sha256": "1689719460a56345b7c1b606fb92ee992b66f6a620ac283a5c98f8f849f64b0a"
+    },
+    {
+      "path": "uav-relative-position-live.png",
+      "bytes": 105501,
+      "sha256": "ce9c1a048cac6195d845d2b39f029f4e1605bff81966695961765277a74c4549"
+    },
+    {
+      "path": "uav-telemetry-connected.png",
+      "bytes": 116086,
+      "sha256": "355d6496307d7426b0317e3da879d0ff21bbb1b45a8e294e9972c3f2b14eb265"
+    },
+    {
+      "path": "ugv-lidar-map.png",
+      "bytes": 5442,
+      "sha256": "5fad0dbcb8ea41fd8985657c36de713e543f0dffcb76172b5a5ac4b6d12d9576"
+    },
+    {
+      "path": "ugv-lidar-maps/map_20260924_211637.png",
+      "bytes": 3245,
+      "sha256": "c05d5f4a43f9d60add992974e4d08609b18a33eed203bb08c01a43c1346f30cd"
+    },
+    {
+      "path": "ugv-lidar-maps/map_20260924_212356.png",
+      "bytes": 3214,
+      "sha256": "233b1291f3c9559322ca1f34e0442795c118da77c19098f7bfd783d65c43cbce"
+    },
+    {
+      "path": "ugv-lidar-maps/map_20260924_214326.png",
+      "bytes": 9042,
+      "sha256": "455fd2d2789ad7de1ffb7889a0f390e23dea3463604ade104c2a1ec1844c78d9"
+    },
+    {
+      "path": "ugv-lidar-maps/map_20260924_214829.png",
+      "bytes": 10621,
+      "sha256": "6dfe1d51339bb02128b5829ef08be765ec379962c01e422400a34f5b4089a1e3"
+    },
+    {
+      "path": "ugv-lidar-maps/map_20260924_224659.png",
+      "bytes": 12616,
+      "sha256": "8fd132eebb62915fe04344c42b8e05bba67d030ee970879bd363d96011453689"
+    },
+    {
+      "path": "ugv-lidar-maps/maps-index.json",
+      "bytes": 163,
+      "sha256": "16db0d4bc06c00ce1aea142032e0fb9d23c66c01145e976f8e39e3f666ffd1d3"
+    },
+    {
+      "path": "ugv-map-front-replaced.png",
+      "bytes": 85486,
+      "sha256": "6e7fb20e23f48b80c9a3f516380f9324ae36975f2d4f47e68663164aa216dea3"
+    },
+    {
+      "path": "ugv-map-in-vehicle-panel.png",
+      "bytes": 91329,
+      "sha256": "3d348c86586a4c40be868f6ab7ac7357733c1f0f7c94a4c2fd4a10a6f0997ccf"
+    },
+    {
+      "path": "ugv-overview-layout-restored.png",
+      "bytes": 99577,
+      "sha256": "7413479601a117b60f2d935762283a5f9ea4eb21575c4958b62667724d49b7a5"
+    },
+    {
+      "path": "ugv-real-connected.png",
+      "bytes": 561242,
+      "sha256": "3194180edbcd17c5a682321ebb44818b15f70d7e42a8dff7d3da6432d2c8062a"
+    },
+    {
+      "path": "交接说明.md",
+      "bytes": 4545,
+      "sha256": "be05ddc33400127a4fa0de40df4374e4ad3b4bc95e7af85ce2c50232692b6dfc"
+    },
+    {
+      "path": "使用说明.md",
+      "bytes": 5233,
+      "sha256": "cb85c18b8e80eacf81af8ac45f172a21207d0ac58f2af9658987d0acfb74613b"
+    },
+    {
+      "path": "启动H100实时图传.ps1",
+      "bytes": 1730,
+      "sha256": "96e0856fbcf0e06daf057ce0f1f2964f0917051bc58eddc59ef024a03bbb6621"
+    },
+    {
+      "path": "启动最新版-仅无人车.ps1",
+      "bytes": 748,
+      "sha256": "c2b99e8fd9337a2492843e0cb7718ee74dc93a1a358a798ad71a1046a3f6445b"
+    },
+    {
+      "path": "启动最新版-实时巡检.ps1",
+      "bytes": 2618,
+      "sha256": "0c1522c8400510f9df2864f1332a976dbc21860da38eb399c495ba7a843a53ba"
+    },
+    {
+      "path": "机端部署文件/README.md",
+      "bytes": 3922,
+      "sha256": "956fa776a730d53f3b8cf06b3e37ea2d4b12a8190183587ef6db0fefc377c5fa"
+    },
+    {
+      "path": "机端部署文件/home/pi/.config/systemd/user/a8-h100-preview.service",
+      "bytes": 311,
+      "sha256": "c3beef11bfa583d4040ce23a836c75f0cf3d5f630b566579215d923c98d00d70"
+    },
+    {
+      "path": "机端部署文件/home/pi/a8mini/h100-web/server.py",
+      "bytes": 11640,
+      "sha256": "7bf6636af5e85177b1807d143a56bd49856a1bb4ed1913c50047b1fb8232a081"
+    },
+    {
+      "path": "机端部署文件/tests/test_a8_recovery.py",
+      "bytes": 3136,
+      "sha256": "beabfcbba572e9e8e0d1b00b22b0357e99469eba19355affad4491a637b6350a"
+    },
+    {
+      "path": "机端部署文件/tools/patch-a8-recovery.py",
+      "bytes": 7011,
+      "sha256": "1ac2f7c77dba8c2716fb5e119d10f9e2ba122cf23ee55ee95440a2c3a48a1be7"
+    },
+    {
+      "path": "车端部署文件/README.md",
+      "bytes": 3361,
+      "sha256": "28e1c2bd31cfd421a6fdfb1254920cdc06c7921e7888f0e3bc975cb841cb2573"
+    },
+    {
+      "path": "车端部署文件/apply-control-layout.py",
+      "bytes": 3792,
+      "sha256": "a94022d85e4af9e5352be0ed99dde8fa78881a79c8afa78acdac315402951473"
+    },
+    {
+      "path": "车端部署文件/apply-status-history.py",
+      "bytes": 3267,
+      "sha256": "bbd42b95538bbc5e7cf6c8c480a219a9277a2e9b0b526445cec335402af3c8c8"
+    },
+    {
+      "path": "车端部署文件/atomori-status-display.js",
+      "bytes": 9808,
+      "sha256": "0096a800b460918ef92e7cde19e7c971c248043033122d3ee9bc590a36f1fe8c"
+    },
+    {
+      "path": "车端部署文件/atomori-status-localization.js",
+      "bytes": 1141,
+      "sha256": "5b1079cf4f22257e1ca8d5aaeb5ac58215c35bc176796a3a152d08172d2d2619"
+    },
+    {
+      "path": "车端部署文件/etc/systemd/system/car-front-camera.service",
+      "bytes": 1041,
+      "sha256": "5e89096fa7b2e4839aaee33062424cbbd820cc0acf5955a3e831350e8b82b24a"
+    },
+    {
+      "path": "车端部署文件/home/ubuntu/CAR_ws/src/car_nodes/car_nodes/rtsp_capture.py",
+      "bytes": 3209,
+      "sha256": "5d2c08f579b8ca10765f4879d62407d27c51b4778b07357c05058535710903b3"
+    },
+    {
+      "path": "车端部署文件/home/ubuntu/CAR_ws/src/car_sim/car_sim/web/atomori-layout.css",
+      "bytes": 2632,
+      "sha256": "a6ca6cd4a8fb6ccbf214d1170a4c77505c48cdcdfb06ce9c5fde93b008e4705a"
+    },
+    {
+      "path": "车端部署文件/home/ubuntu/CAR_ws/src/car_sim/car_sim/web/index.html",
+      "bytes": 73117,
+      "sha256": "476d8af95cc66358d7488ec466f3c81f26422cb9056561b9c6055a044f9c822e"
+    },
+    {
+      "path": "车端部署文件/tests/status-display.test.cjs",
+      "bytes": 6647,
+      "sha256": "b89546d8f6fb1569674069e761da44feb7bc94fc469bda08a23c96e14a22418e"
+    },
+    {
+      "path": "车端部署文件/tests/test_rtsp_recovery.py",
+      "bytes": 2637,
+      "sha256": "e9438f70afdebc8e075a8172317529c7628f2eaff98deecc41c0b796210364d7"
+    },
+    {
+      "path": "车端部署文件/tests/test_status_patch.py",
+      "bytes": 1660,
+      "sha256": "7858566eae437882706148989f5664813e29418dbd2c259c85d81a2dc7c809ac"
+    },
+    {
+      "path": "00-最新代码包说明.md",
+      "bytes": 3004,
+      "sha256": "dbd8fa286177ef2004adc480674a4867ff9ae4547851e495efd9d7f62fd7482a"
+    },
+    {
+      "path": "打开前端-离线.ps1",
+      "bytes": 822,
+      "sha256": "e3f6e465a63bfeda07c2b4dd85747a3c37ffc1a5d7236d2d48bdba9a7aa59c4d"
+    }
+  ]
+}

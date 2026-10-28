@@ -1,4 +1,4 @@
-import json, subprocess, threading, time, select
+import json, subprocess, threading, time, select, uuid
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT=Path(__file__).parent
@@ -27,6 +27,7 @@ class Preview:
         self.jpeg = None
         self.frames = 0
         self.last_frame = 0
+        self.session_id = uuid.uuid4().hex
         self.state = 'idle'
         self.error = ''
 
@@ -50,7 +51,9 @@ class Preview:
                 state, error = 'reconnecting', 'No fresh camera frame; reconnecting'
             return dict(state=state, error=error, frames=self.frames,
                         age_seconds=age, clients=self.clients, preview_fps=10,
-                        source_fps=30, width=640, height=360)
+                        source_fps=30, width=640, height=360,
+                        server_time_ms=time.time() * 1000, session_id=self.session_id,
+                        frame_time_basis='pi_jpeg_decode_complete')
 
     def run(self):
         while True:
@@ -211,12 +214,16 @@ class Handler(BaseHTTPRequestHandler):
                                         and time.time() - preview.last_frame < 3, timeout=5)
                     image = preview.jpeg if time.time() - preview.last_frame < 3 else None
                     count = preview.frames
+                    decoded_ms = preview.last_frame * 1000
+                    session_id = preview.session_id
                 if image is None or count == seen:
                     # End a stalled stream: the browser can reconnect without receiving cached frames.
                     return
                 seen = count
                 self.wfile.write(b'--a8frame\r\nContent-Type: image/jpeg\r\nContent-Length: '
-                                 + str(len(image)).encode() + b'\r\n\r\n' + image + b'\r\n')
+                                 + str(len(image)).encode()
+                                 + f'\r\nX-Frame-Id: {count}\r\nX-Frame-Decoded-At-Ms: {decoded_ms:.3f}\r\nX-Frame-Session: {session_id}\r\n\r\n'.encode()
+                                 + image + b'\r\n')
                 self.wfile.flush()
         except (OSError, TimeoutError):
             pass

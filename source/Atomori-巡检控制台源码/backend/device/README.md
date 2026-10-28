@@ -53,14 +53,44 @@ python3 /path/to/flight_status_http.py --ros-args -r __node:=atomori_telemetry_h
 
 验证设备侧应只读检查 `/mavros/state`、`/mavros/battery`、`/mavros/global_position/rel_alt`、`/landing/sensor_range` 的类型和实时发布情况。未收到有效消息应显示缺失，不把测试样本、历史值或图传正常当成飞控正常。
 
+## H100 姿态与 IMU 修复（2026-10-28）
+
+- 实测 `/mavros/imu/data` 在 5 秒探测内收到 46 条，`local_position/pose` 为 0 条。姿态优先读取 IMU，失效时才使用新鲜且有效的 pose；不以 IMU 补造位置或改变指令坐标换算。
+- 桥增加独立的三轴角速度（rad/s，FLU）、加速度（m/s²，FLU）和罗盘航向。指标仍逐项检查 0.5 秒时效、有限值及 ROS covariance 的不可用标志。
+- 显示用心跳限制为 2 秒，避免约 1 Hz 心跳在周期边界导致数值闪空；现有指令、旧位置和速度门限保留。沿用设备既有的 3 秒连接诊断，不把连接诊断等同于每项遥测有效。
+- 20 秒只读 MAVLink 探测未收到 SYS_STATUS，不能推断陀螺仪等自检正常。页面分别显示实时读数与“自检未上报”。
+- 已更新 `pi@192.168.50.3:/home/pi/atomori_console_telemetry/flight_status_http.py`，仅重启 `atomori-telemetry.service`；MAVROS、测距桥启动时间未变。原文件备份为 `/home/pi/atomori_console_telemetry/backups/imu-20261028-173613/flight_status_http.py`。回滚时复制该文件覆盖运行文件，再重启这一用户服务即可。
+
 ## 本地验证
+
+### H100 只读遥测扩展（2026-10-28）
+
+- `flight_status_http.py` 现依赖同目录的 `flight_telemetry.py`，部署/回滚须把两份文件作为一组。新增模块只创建订阅，不创建发布者、不调用服务、不请求消息速率或修改飞控参数；原 IMU、姿态、控制门限与旧 HTTP 字段保留。
+- 本版注册 57 个来源项目（含 1 个尚无 ROS 来源的 VIBRATION 占位）与 361 个额外数值项。覆盖电池、电流、VFR、RC 输入/输出、位置速度、原始 IMU、磁场、气压/差压、温度、GPS/RTK、SYS_STATUS、状态文字、估计器、ESC、光流/测距、Home、导航误差、飞控回传目标，以及里程计、任务、时间同步、节点诊断原文。注册不等于飞控当前已经发布；未收到消息保持 `NO_SAMPLE`。
+- 新 HTTP 字段为 `extra_metrics`、`telemetry_sources`、`health`/`health_age_s`、`alerts`。每项数值提供 label/group/unit/digits/source、独立 age_s/max_age_s、valid/reason；无效 value 为 null，raw_value 只供诊断。来源表的 data 为有界原文，不能绕过指标有效性过滤。
+- `/api/status` 和 `/api/history` 在客户端明确发送 `Accept-Encoding: gzip` 且 gzip 的 q 值大于 0 时使用 gzip level 1 压缩，返回 `Content-Encoding: gzip`、`Vary: Accept-Encoding` 和实际响应体长度；无该支持或 q=0 时仍返回原 JSON。仅减少链路传输量，不删字段、不降低精度、不放宽 IMU 时效。处理器往返测试覆盖压缩解码、无协商、q=0、非法 q 及历史接口。
+- 容量明确有限：RC 输入、输出各 32 通道；电池电压、温度数组各 16 通道；ESC 两类数值各取前 8 项；原始诊断每来源最多 256 个节点、深度 6、数组 32 项、对象 48 键、字符串 512 字符。状态消息最多 32 条且仅保留最近 30 秒。超出部分不宣称全量展示；消息数组缩短时消失通道立即失效。
+- 电池电流保留 ROS 原始符号。`cell_voltage` 可能由飞控填入整包电压，因此显示为“电池上报电压通道（单体含义未核验）”，不凭数组名宣称已核验单节电压。磁场按消息声明单位 T 原样校验，绝对值超过 0.01 T 标 `OUT_OF_RANGE` 并保留原值，不猜测修正比例。GPS 无定位状态时不把坐标包装成有效定位。
+- 只有真实 `/mavros/sys_status` 位掩码产生飞控健康结论；收到 IMU 或 `/diagnostics` 的 Normal 不等于传感器自检正常。EstimatorStatus 保留各个位标志，GPS 异常位为真不能解释成全部正常。
+- 现场已核验 Home、gp_origin、mission/waypoints、mission/reached、sys_status 发布 QoS 为 RELIABLE + TRANSIENT_LOCAL，仅这五个新增来源采用对应 QoS；其他新增遥测使用 sensor-data。对这五路还检查 ROS header 时间，旧缓存不因新订阅而获得新鲜度，缺失/未来 header 保守失效。普通遥测 age_basis 为 bridge_receive_monotonic；这些缓存来源为 ros_header_age_and_bridge_receive，来源表另给 received_age_s。所有年龄都不声称是已核验的硬件采样延迟。
+- 单位参照部署机的 ROS Humble 消息字段及官方定义：[GPSRAW](https://github.com/mavlink/mavros/blob/ros2/mavros_msgs/msg/GPSRAW.msg)、[ESCTelemetryItem](https://github.com/mavlink/mavros/blob/ros2/mavros_msgs/msg/ESCTelemetryItem.msg)、[OPTICAL_FLOW 与 SYS_STATUS](https://mavlink.io/en/messages/common.html)、[MAVROS QoS](https://github.com/mavlink/mavros/blob/ros2/mavros/include/mavros/qos.hpp)。光流原始量为 dpix、角速率 rad/s，ESC 累积电荷为 Ah。
 
 ```powershell
 python -m unittest discover -s device -p 'test_*.py' -v
-python -m py_compile device/flight_status_http.py
+python -m py_compile device/flight_status_http.py device/flight_telemetry.py
 ```
 
 测试使用标准库和 ROS import stub，不启动 ROS 节点、不连接设备、不写控制：覆盖空状态、单位/比例、未知和越界值、有效的零电量、未安装电池、过期/恢复、飞控断连、飞控状态过期、三类高度保持独立和历史有效性过滤。设备侧真实数据发布与部署效果须另行现场验证。
+
+## 2026-10-28 H100 扩展部署验收
+
+- 两份桥文件已上传 `pi@192.168.50.3:/home/pi/atomori_console_telemetry/`，校验 SHA256 后仅重启 `atomori-telemetry.service`。MAVROS 和测距桥的容器启动时间仍分别为 18:43:50、18:43:51，未改变控制栈或飞控配置。
+- 部署前备份在 `/home/pi/atomori_console_telemetry/backups/full-telemetry-20261028-185735/flight_status_http.py`；恢复该原文件并重启 telemetry 服务即可回滚到旧桥。该目录的 `flight_status_http.before-gzip.py` 为扩展已接入、压缩未启用的中间版本。
+- 实机注册来源没有消息类型加载错误。一次稳定窗口共 17 个来源收到消息，382 项合并参数中 35 项有效；有效项包括姿态、IMU、航向、电池电流/电压/百分比、4 路输出及相对 Home 高度。GPS 无有效定位；SYS_STATUS、空速等缺少有效上报。磁场越界原值仅留诊断，不调整比例。
+- 完整响应约 135,888 B，gzip 后 14,014 B。稳定后连续 20 次本机 API 查询均保持 35 项有效、姿态 20/20 有效；中位请求耗时 139 ms，最大 203 ms，IMU 收包累计 344→418。此为本次短窗口验收，不承诺无线链路永不抖动。
+- 本地 Node 122 项回归及后续 14 项针对性检查通过；Python 飞控桥 38 项通过。全目录 Python 检查中的独立 Mission Planner 模块因当前解释器缺少 `pymavlink` 未运行，本次未改该模块。验收记录位于仓库 `.runtime/uav-full-live-check-gzip-steady.json`。
+- 页面随后将请求耗时纳入 200 ms 目标刷新周期，保留串行、隐藏暂停及失败 500 ms 退避，防止固定额外等待造成姿态刷新空档；新增排程等 14 项针对性回归通过，原数据时效没有放宽。
+- 最终在用户当前浏览器连续读取 20 次页面，均显示 382 项、35 项实时有效，陀螺仪读数持续变化且 20/20 有效；未捕获页面脚本错误。记录为 `.runtime/uav-full-ui-live-check.json`，截图为 `.runtime/uav-all-telemetry-live.jpg`。
 
 ## 历史现场只读检查（2026-10-08 13:31，UTC+8）
 
