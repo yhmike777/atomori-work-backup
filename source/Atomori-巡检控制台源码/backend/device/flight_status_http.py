@@ -157,6 +157,7 @@ class FlightStatusState:
         self.imu_quaternion: Optional[tuple] = None
         self.imu_received_s: Optional[float] = None
         self.imu_values: dict = {}
+        self._attitude_source: Optional[str] = None
         self.heading_deg: Optional[float] = None
         self.heading_received_s: Optional[float] = None
         self.local_vertical_speed_mps: Optional[float] = None
@@ -225,6 +226,22 @@ class FlightStatusState:
             battery_age = None if self.battery_received_s is None else max(0.0, now_s - self.battery_received_s)
             relative_altitude = self.relative_altitude_m
             relative_age = None if self.relative_altitude_received_s is None else max(0.0, now_s - self.relative_altitude_received_s)
+            # A stale IMU is not evidence that pose became the attitude source.
+            # Keep the last actual source so display history remains addressable;
+            # the value and its original 0.5 s freshness gate remain independent.
+            attitude = None
+            if bool(vehicle.get("connected", False)) and vehicle_age is not None and vehicle_age <= 2.0:
+                attitude = attitude_degrees(imu_quaternion) if imu_age is not None and imu_age <= 0.5 else None
+                if attitude is not None:
+                    self._attitude_source = "imu"
+                else:
+                    attitude = attitude_degrees(quaternion)
+                    if attitude is not None:
+                        self._attitude_source = "pose"
+            attitude_kind = self._attitude_source or ("pose" if imu_age is None and pose_age is not None else "imu")
+            attitude_age = imu_age if attitude_kind == "imu" else pose_age
+            attitude_source = ("/mavros/imu/data.orientation (ENU/FLU -> FRD)" if attitude_kind == "imu"
+                               else "/mavros/local_position/pose.orientation (ENU/FLU -> FRD)")
         velocity_fresh = velocity is not None and velocity_age is not None and velocity_age <= 1.0
         vx = velocity["x"] if velocity_fresh else None
         vy = velocity["y"] if velocity_fresh else None
@@ -245,11 +262,6 @@ class FlightStatusState:
         telemetry_state_fresh = connected and vehicle_age is not None and vehicle_age <= 1.0
         # Display heartbeat gate matches the HTTP adapter; command gates stay at 1 s.
         display_state_fresh = connected and vehicle_age is not None and vehicle_age <= 2.0
-        attitude = attitude_degrees(imu_quaternion) if imu_age is not None and imu_age <= 0.5 else None
-        attitude_age, attitude_source = imu_age, "/mavros/imu/data.orientation (ENU/FLU -> FRD)"
-        if attitude is None:
-            attitude = attitude_degrees(quaternion)
-            attitude_age, attitude_source = pose_age, "/mavros/local_position/pose.orientation (ENU/FLU -> FRD)"
         roll, pitch = attitude if attitude is not None else (None, None)
         telemetry_meta = {
             "roll_deg": metric_metadata(roll, connected=display_state_fresh,

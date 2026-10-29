@@ -32,7 +32,7 @@ function setup() {
   const context = vm.createContext({
     Date: { now: () => EPOCH + now, parse: Date.parse }, performance: { now: () => now },
     latestFlight: {}, latestVision: {}, uavReceivedAt: 0, visionReceivedAt: 0,
-    renderUav() {}, stopped: false
+    renderUav() {}, renderRelativePosition() {}, flightReading() {}, document: { hidden: false }, stopped: false
   });
   vm.runInContext(read('api.js') + '\nglobalThis.api = AtomoriApi;', context);
   vm.runInContext(live.slice(live.indexOf('  function applyUav('), live.indexOf('  function renderUav()')), context);
@@ -50,6 +50,20 @@ test('排队发生在机载采样之前：只计入归一化后传输，不误�
   app.at(6200);
   assert.ok(app.run('latestFlight.stateAgeS + (performance.now() - uavReceivedAt) / 1000') > 2,
     '同一快照继续老化，不能因排队修复而延长有效期');
+});
+
+test('稀疏响应省略来源身份时保持显示缓存边界，显式换源才清除最近模式', () => {
+  const app = setup(); app.context.retainedMode = 'STABILIZE';
+  app.context.data = { source: 'uav-rpi-deploy', sourceIdentity: 'pi-one', flight: { metrics: {} } };
+  app.run('applyUav(data)');
+  app.context.data = { source: 'uav-rpi-deploy', flight: {} };
+  app.run('applyUav(data)');
+  assert.equal(app.run('latestFlight.displayIdentity'), 'pi-one');
+  assert.equal(app.context.retainedMode, 'STABILIZE');
+  app.context.data = { source: 'uav-rpi-deploy', sourceIdentity: 'pi-two', flight: {} };
+  app.run('applyUav(data)');
+  assert.equal(app.run('latestFlight.displayIdentity'), 'pi-two');
+  assert.equal(app.context.retainedMode, null);
 });
 
 test('响应时间缺失、无效或在未来时保守使用旧计时，不把旧值更新为刚采样', () => {

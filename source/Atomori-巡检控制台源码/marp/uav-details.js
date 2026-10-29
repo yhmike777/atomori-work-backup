@@ -21,6 +21,9 @@
   let snapshot = null, config = null, receivedAt = 0, lastResponse = null, errorMessage = '', busy = false, stopped = false, pollTimer, renderTimer;
   let failureCount = 0, cacheIdentity = null, cacheSourceIdentity = null, snapshotSequence = 0;
   const displayCache = new Map(), definitionCache = new Map(), stateCache = new Map();
+  const sourceCache = new Map(), executionCache = new Map(), alertCache = new Map();
+  let healthCache = null;
+  const diagnosticKey = (item, index) => `${String(item.topic || `未命名来源 ${index + 1}`)}\u0000${String(item.messageType || '')}`;
   const flightSource = () => Object.hasOwn(config || {}, 'uavFlightSource')
     ? ['mission-planner', 'raspberry-pi'].includes(config.uavFlightSource) ? config.uavFlightSource : null
     : config?.liveOnly === true && config.uavFlightConfigured === true ? 'raspberry-pi' : config?.missionPlannerConfigured ? 'mission-planner' : null;
@@ -38,7 +41,8 @@
       fromRpi() ? '' : transport?.systemId ?? (sameSource ? previous[3] : ''), fromRpi() ? '' : transport?.componentId ?? (sameSource ? previous[4] : '')].join('|');
     const explicitIdentity = snapshotIsSelected() && typeof snapshot?.sourceIdentity === 'string' && snapshot.sourceIdentity ? snapshot.sourceIdentity : null;
     if (identity !== cacheIdentity || (explicitIdentity && explicitIdentity !== cacheSourceIdentity)) {
-      displayCache.clear(); definitionCache.clear(); stateCache.clear(); cacheIdentity = identity; cacheSourceIdentity = explicitIdentity;
+      displayCache.clear(); definitionCache.clear(); stateCache.clear(); sourceCache.clear(); executionCache.clear(); alertCache.clear(); healthCache = null;
+      cacheIdentity = identity; cacheSourceIdentity = explicitIdentity;
     }
   }
   function rememberSnapshot() {
@@ -58,6 +62,7 @@
       const sampleAt = receivedAt - candidate.ageS * 1000, previous = displayCache.get(key);
       if (!previous || sampleAt > previous.sampleAt) displayCache.set(key, { value: candidate.value, unit: candidate.unit, source: candidate.source, maxAgeS: candidate.maxAgeS, ageBasis: candidate.ageBasis, sampleAt });
     }
+    rememberDetails(flight.details || {}, originConnected);
     if (!originConnected) return;
     const rememberState = (key, value, sampleAge, valid) => {
       if (valid && finite(sampleAge) && sampleAge >= 0 && sampleAge <= 2) stateCache.set(key, { value, sampleAt: receivedAt - sampleAge * 1000, sequence: snapshotSequence });
@@ -72,6 +77,59 @@
     const ageS = item ? Math.max(0, (performance.now() - item.sampleAt) / 1000) : null;
     const valid = !!item && !errorMessage && stateFresh() && item.sequence === snapshotSequence && ageS <= 2;
     return { value: item?.value ?? null, available: !!item, valid, retained: !!item && !valid, ageS };
+  }
+  function rememberDetails(details, connected) {
+    const rememberDiagnostic = (cache, key, item) => {
+      if (!item || typeof item !== 'object') return;
+      const previous = cache.get(key), hasData = item.data !== undefined && item.data !== null;
+      if (!hasData || !finite(item.ageS) || item.ageS < 0) {
+        if (!previous) cache.set(key, { item, sampleAt: null, sequence: snapshotSequence });
+        return;
+      }
+      const sampleAt = receivedAt - item.ageS * 1000;
+      if (!previous || previous.sampleAt === null || sampleAt >= previous.sampleAt) cache.set(key, { item, sampleAt, sequence: snapshotSequence });
+    };
+    if (Array.isArray(details.telemetrySources)) details.telemetrySources.slice(0, 128).forEach((item, index) => {
+      if (item && typeof item === 'object') rememberDiagnostic(sourceCache, diagnosticKey(item, index), item);
+    });
+    while (sourceCache.size > 128) sourceCache.delete(sourceCache.keys().next().value);
+    for (const key of ['velocity', 'motionCommand', 'executor']) rememberDiagnostic(executionCache, key, details[key]);
+    if (!connected) return;
+    if (details.healthValid !== false && finite(details.healthAgeS) && details.healthAgeS >= 0 && details.healthAgeS <= 3 && Array.isArray(details.health)) {
+      const items = details.health.filter(item => typeof item?.label === 'string' && typeof item.state === 'string').slice(0, 64);
+      const sampleAt = receivedAt - details.healthAgeS * 1000;
+      if (items.length && (!healthCache || sampleAt >= healthCache.sampleAt)) healthCache = { items, sampleAt, sequence: snapshotSequence };
+    }
+    for (const item of Array.isArray(details.alerts) ? details.alerts : []) {
+      if (item?.valid === false || typeof item?.text !== 'string' || !Number.isInteger(item.severity) || item.severity < 0 || item.severity > 7
+        || !finite(item.ageS) || item.ageS < 0 || item.ageS > 30) continue;
+      // Identical messages share one history entry; a repeated message keeps its latest genuine sample time.
+      const key = `${item.severity}\u0000${item.text}`, sampleAt = receivedAt - item.ageS * 1000, previous = alertCache.get(key);
+      if (!previous || sampleAt >= previous.sampleAt) {
+        alertCache.delete(key); alertCache.set(key, { item, sampleAt, sequence: snapshotSequence });
+      }
+    }
+    if (alertCache.size > 50) {
+      const oldest = [...alertCache.entries()].sort((a, b) => a[1].sampleAt - b[1].sampleAt);
+      for (const [key] of oldest.slice(0, alertCache.size - 50)) alertCache.delete(key);
+    }
+  }
+  function diagnosticReading(cache, key, current) {
+    const entry = cache.get(key), state = diagnosticState(current), available = finite(entry?.sampleAt);
+    if (!available) return { item: current || entry?.item, ...state, available: false };
+    const ageS = Math.max(0, (performance.now() - entry.sampleAt) / 1000), valid = state.valid && entry.sequence === snapshotSequence;
+    return { item: entry.item, ageS, valid, available: true, text: '最近接收 · 仅供诊断', currentText: valid ? state.text : state.text || '等待更新' };
+  }
+  function healthReading() {
+    const ageS = healthCache ? Math.max(0, (performance.now() - healthCache.sampleAt) / 1000) : null;
+    const valid = !!healthCache && !errorMessage && stateFresh() && healthCache.sequence === snapshotSequence && ageS <= 3;
+    return { items: healthCache?.items || [], ageS, valid };
+  }
+  function alertReadings() {
+    return [...alertCache.values()].sort((a, b) => b.sampleAt - a.sampleAt).map(entry => {
+      const ageS = Math.max(0, (performance.now() - entry.sampleAt) / 1000);
+      return { ...entry.item, ageS, valid: !errorMessage && stateFresh() && entry.sequence === snapshotSequence && ageS <= 30 };
+    });
   }
   const reasonText = reason => ({ GPS_NO_FIX: 'GPS 未定位', FLIGHT_CONTROLLER_DISCONNECTED: '飞控断连 / 过期', STATE_STALE_FOR_TELEMETRY: '飞控心跳已过期',
     NO_VALID_SAMPLE: '未上报有效样本', NOT_REPORTED: '未上报', NOT_CONNECTED: '旧版遥测桥未接入', NO_SAMPLE: '未上报',
@@ -159,7 +217,7 @@
       selector.value = groups.includes(selection) ? selection : ''; selector.dataset.groups = groupKey;
     }
     const body = get('telemetry-rows'), visibleKeys = new Set(), visibleGroups = new Set(), definitionKeys = new Set(definitions.map(item => item.key));
-    let total = 0, valid = 0, retained = 0, cursor = body.firstElementChild;
+    let total = 0, available = 0, cursor = body.firstElementChild;
     const position = node => { if (node !== cursor) body.insertBefore(node, cursor); cursor = node.nextElementSibling; };
     for (const group of groups) {
       const selected = definitions.filter(item => item.group === group && (!selector.value || selector.value === group) && (!search || `${item.label} ${item.key} ${definitionCache.get(item.key)?.source || ''}`.toLocaleLowerCase().includes(search)));
@@ -170,21 +228,22 @@
       setText(heading.firstElementChild, `${group} · ${selected.length} 项`); position(heading);
       for (const definition of selected) {
         const { key, label, unit, digits } = definition, item = metric(key);
-        visibleKeys.add(key); total++; if (item.valid) valid++; if (item.retained) retained++;
+        visibleKeys.add(key); total++; if (item.available) available++;
         let row = tableRows.get(key);
         if (!row) { row = document.createElement('tr'); row.dataset.metric = key; for (let i = 0; i < 5; i++) row.append(document.createElement('td')); tableRows.set(key, row); }
         const displayUnit = typeof item.unit === 'string' ? item.unit === 'deg' ? '°' : item.unit : unit;
         const values = [key === 'rangefinder' && !fromRpi() ? '测距（方向未确认）' : label,
-          item.available ? `${item.value.toFixed(digits)}${displayUnit ? ' ' + displayUnit : ''}` : '—', item.reason, finite(item.ageS) ? item.ageS.toFixed(2) + ' s' : '—', item.source];
+          item.available ? `${item.value.toFixed(digits)}${displayUnit ? ' ' + displayUnit : ''}` : '—', item.available ? '最近接收' : item.reason, finite(item.ageS) ? item.ageS.toFixed(2) + ' s' : '—', item.source];
         values.forEach((value, index) => setText(row.children[index], value));
-        row.children[2].className = item.valid ? 'value-valid' : item.retained ? 'value-retained' : 'value-missing'; position(row);
+        row.children[2].className = item.available ? 'value-received' : 'value-missing';
+        row.children[2].title = item.reason; row.dataset.valid = String(item.valid); position(row);
       }
     }
     for (const [key, row] of tableRows) if (!visibleKeys.has(key)) { row.remove(); if (!definitionKeys.has(key)) tableRows.delete(key); }
     for (const [key, row] of groupRows) if (!visibleGroups.has(key)) row.remove();
-    setText(get('telemetry-count'), `${total} 项 · ${valid} 项实时有效${retained ? ` · ${retained} 项最近数据` : ''}`);
+    setText(get('telemetry-count'), `${total} 项 · ${available} 项已有读数 · ${total - available} 项未收到有效读数`);
     get('telemetry-empty').hidden = total !== 0;
-    setText(get('telemetry-extension-status'), fromRpi() && snapshot && snapshot.flight?.details?.extraTelemetryStatus !== 'CONNECTED' ? '当前机载桥尚未接入扩展遥测。已收到的有效读数会保留并标记最近数据。' : '按参数、通道或数据来源搜索；最近数据保留原样本年龄，未收到的指标显示 —。');
+    setText(get('telemetry-extension-status'), '稳定显示最近一次有效读数；样本年龄持续累计，悬停“最近接收”查看当前有效性。未收到有效读数的指标显示 —。');
   }
   function diagnosticState(item, defaultAge = 3) {
     if (!item) return { text: '未上报', valid: false, ageS: null };
@@ -212,26 +271,28 @@
   }
   function renderDiagnostics(details) {
     const enabled = fromRpi(); get('telemetry-sources-card').hidden = !enabled; if (!enabled) return;
-    const sources = Array.isArray(details.telemetrySources) ? details.telemetrySources : [], active = new Set();
+    const currentSources = new Map((Array.isArray(details.telemetrySources) ? details.telemetrySources : []).filter(item => item && typeof item === 'object').map((item, index) => [diagnosticKey(item, index), item]));
+    const sources = [...sourceCache.entries()], active = new Set();
     const container = get('telemetry-sources'); let received = 0;
-    sources.forEach((item, index) => {
-      if (!item || typeof item !== 'object') return;
-      const key = `${String(item.topic || `未命名来源 ${index + 1}`)}\u0000${String(item.messageType || '')}`; active.add(key);
-      const row = diagnosticElement(sourceRows, key, container), state = diagnosticState(item);
-      if (state.valid) received++;
+    sources.forEach(([key]) => {
+      active.add(key);
+      const row = diagnosticElement(sourceRows, key, container), state = diagnosticReading(sourceCache, key, currentSources.get(key)), item = state.item;
+      if (state.available) received++;
       setText(row.children[0].children[0], item.topic || '未命名来源');
       setText(row.children[0].children[1], state.text);
-      row.children[0].children[1].className = state.valid ? 'value-valid' : 'value-missing';
+      row.children[0].children[1].className = state.available ? 'value-received' : 'value-missing';
+      row.children[0].children[1].title = state.currentText || state.text;
       setText(row.children[1], `${item.messageType || '消息类型未提供'} · 收包 ${finite(item.count) && item.count >= 0 ? Math.trunc(item.count) : '—'} · 样本年龄 ${finite(state.ageS) ? state.ageS.toFixed(2) + ' s' : '—'}${typeof item.error === 'string' && item.error ? ' · 原因：' + item.error : ''}`);
       updateDiagnosticJson(row, item.data ?? null);
     });
     for (const [key, row] of sourceRows) if (!active.has(key)) { row.remove(); sourceRows.delete(key); }
-    setText(get('telemetry-sources-count'), `${sources.length} 个来源 · ${received} 个在有效期内`);
+    setText(get('telemetry-sources-count'), `${sources.length} 个来源 · ${received} 个已有消息`);
     get('telemetry-sources-empty').hidden = sources.length !== 0;
     setText(get('telemetry-sources-empty'), details.telemetrySourcesStatus !== 'CONNECTED' ? '当前机载桥尚未接入来源诊断。' : '尚未上报遥测来源。');
     for (const [key, label] of [['velocity', '机载速度与坐标系'], ['motionCommand', '机载运动指令状态'], ['executor', '机载执行器状态']]) {
-      const item = details[key], state = diagnosticState(item || { status: details[`${key}Status`] || 'NOT_CONNECTED' }), row = diagnosticElement(diagnosticRows, key, get('flight-execution-diagnostics'));
+      const state = diagnosticReading(executionCache, key, details[key] || { status: details[`${key}Status`] || 'NOT_CONNECTED' }), item = state.item, row = diagnosticElement(diagnosticRows, key, get('flight-execution-diagnostics'));
       setText(row.children[0].children[0], label); setText(row.children[0].children[1], state.text);
+      row.children[0].children[1].title = state.currentText || state.text;
       setText(row.children[1], `${item?.source || '来源未提供'} · 样本年龄 ${finite(state.ageS) ? state.ageS.toFixed(2) + ' s' : '—'} · 仅查看机载上报，不发送命令`);
       updateDiagnosticJson(row, item?.data ?? item ?? null);
     }
@@ -239,7 +300,7 @@
   function render() {
     ensureDisplaySource();
     const fresh = !errorMessage && stateFresh(), flight = snapshotIsSelected() ? snapshot?.flight || {} : {}, details = flight.details || {};
-    const hasRetained = [...displayCache.keys()].some(key => metric(key).retained) || [...stateCache.keys()].some(key => statusReading(key).retained);
+    const hasReadings = displayCache.size > 0 || stateCache.size > 0;
     const banner = get('flight-banner');
     let bannerText = errorMessage ? `Mission Planner 遥测不可用：${errorMessage}；正在自动重试。` : !config ? '正在连接 Mission Planner 接收服务…' : !snapshot ? '正在读取 Mission Planner 转发数据…' : fresh ? 'Mission Planner MAVLink 转发已接收 · 正在显示飞控数据。' : snapshot.transport?.acceptedMessages ? 'Mission Planner 转发已中断或飞控心跳过期。' : '接收服务已就绪 · 等待另一台电脑转发 Mission Planner MAVLink 数据。';
     if (fromRpi()) {
@@ -257,20 +318,20 @@
       get('mirror-count').parentElement.querySelector('dt').textContent = '机载来源累计收包';
       bannerText = errorMessage ? `树莓派遥测不可用：${errorMessage}；正在自动重试。` : fresh ? '已接收树莓派只读遥测。' : '树莓派遥测未返回有效飞控心跳。';
     }
-    setText(banner, bannerText + (hasRetained ? ' 部分内容显示最近有效数据，样本年龄持续累计。' : ''));
-    banner.classList.toggle('is-connected', fresh && !hasRetained);
-    banner.classList.toggle('is-retained', hasRetained);
+    setText(banner, bannerText + (hasReadings ? ' 读数持续保留，样本年龄表示距离该次采样的时间。' : ''));
+    banner.classList.toggle('is-connected', fresh);
+    banner.classList.toggle('is-retained', !fresh && hasReadings);
     get('connection-badge').textContent = fresh ? '飞控在线' : fromRpi() ? '飞控离线/过期' : snapshot?.transport?.acceptedMessages ? '心跳已过期' : '等待转发';
     get('connection-badge').classList.toggle('is-connected', fresh);
     const systemStates = { 0: '未初始化', 1: '启动中', 2: '校准中', 3: '待机', 4: '运行中', 5: '严重异常', 6: '紧急状态', 7: '关机中', 8: '飞行终止' };
     const gpsFix = metric('gpsFix'), satellites = metric('satellites');
     const mode = statusReading('mode'), armed = statusReading('armed'), landed = statusReading('landed'), system = statusReading('system');
-    const statusLabel = (item, format = value => value) => item.available ? `${format(item.value)}${item.retained ? `（最近数据 · ${item.ageS.toFixed(1)} s）` : ''}` : '—';
+    const statusLabel = (item, format = value => value) => item.available ? `${format(item.value)}（最近接收 · ${item.ageS.toFixed(1)} s）` : '—';
     const rows = [
       ['飞行模式', statusLabel(mode)], ['解锁状态', statusLabel(armed, value => value ? '已解锁' : '未解锁')],
       ['落地状态', statusLabel(landed, value => ({ ON_GROUND: '在地面', IN_AIR: '在空中', TAKEOFF: '起飞中', LANDING: '降落中' }[value] || '未知'))],
       ['系统状态', statusLabel(system, value => systemStates[value] || '未知')],
-      ['GPS 定位', gpsFix.available ? ({ 0: '无 GPS', 1: '未定位', 2: '2D 定位', 3: '3D 定位', 4: 'DGPS', 5: 'RTK 浮点', 6: 'RTK 固定', 7: '静态', 8: 'PPP' }[gpsFix.value] || '未知') + (satellites.available ? ` · ${satellites.value} 颗卫星` : '') + (gpsFix.retained || satellites.retained ? '（最近数据）' : '') : '未收到有效状态'],
+      ['GPS 定位', gpsFix.available ? ({ 0: '无 GPS', 1: '未定位', 2: '2D 定位', 3: '3D 定位', 4: 'DGPS', 5: 'RTK 浮点', 6: 'RTK 固定', 7: '静态', 8: 'PPP' }[gpsFix.value] || '未知') + (satellites.available ? ` · ${satellites.value} 颗卫星` : '') + '（最近接收）' : '未收到有效状态'],
       ['心跳接收年龄', finite(age(flight.stateAgeS)) ? `${age(flight.stateAgeS).toFixed(2)} s` : '—']
     ];
     renderPairs(get('flight-state'), rows);
@@ -279,7 +340,8 @@
       const container = get('primary-metrics'); let card = container.children[index];
       if (!card) { card = document.createElement('div'); card.className = 'primary-metric'; const value = document.createElement('strong'); value.append(document.createElement('span'), document.createElement('small')); card.append(document.createElement('span'), value, document.createElement('p')); container.append(card); }
       setText(card.children[0], label); setText(card.children[1].children[0], item.available ? item.value.toFixed(digits) : '—'); setText(card.children[1].children[1], item.available ? unit : '');
-      setText(card.children[2], item.retained ? `最近数据 · ${item.ageS.toFixed(1)} s` : item.reason); card.children[2].className = item.retained ? 'value-retained' : '';
+      setText(card.children[2], item.available ? `最近接收 · ${item.ageS.toFixed(1)} s` : item.reason); card.children[2].className = item.available ? 'value-received' : '';
+      card.children[2].title = item.reason;
     });
     renderMetrics(); renderDiagnostics(details);
     const roll = metric('roll'), pitch = metric('pitch'), attitudeAvailable = roll.available && pitch.available, attitudeValid = roll.valid && pitch.valid;
@@ -288,52 +350,51 @@
     const heading = metric('heading');
     get('heading-value').textContent = heading.available ? heading.value.toFixed(1) + '°' : '—';
     for (const [key, item] of [['roll', roll], ['pitch', pitch], ['heading', heading]]) {
-      get(`${key}-value`).classList.toggle('value-retained', item.retained);
-      get(`${key}-value`).title = item.retained ? `最近数据 · 样本年龄 ${item.ageS.toFixed(1)} s` : item.reason;
+      get(`${key}-value`).title = item.available ? `${item.reason} · 样本年龄 ${item.ageS.toFixed(1)} s` : item.reason;
     }
     const hudValue = (key, unit, digits = 1) => { const item = metric(key); return item.available ? item.value.toFixed(digits) + unit : '—' + unit; };
     get('hud-airspeed').textContent = hudValue('airspeed', ' m/s');
     get('hud-altitude').textContent = hudValue('relativeAltitude', ' m');
     get('hud-groundspeed').textContent = '地速 ' + hudValue('groundspeed', ' m/s');
     get('hud-voltage').textContent = '电池 ' + hudValue('batteryVoltage', ' V') + ' / ' + hudValue('batteryCurrent', ' A');
-    get('hud-armed').textContent = armed.available ? (armed.value ? '已解锁' : '已锁定') + (armed.retained ? ' · 最近数据' : '') : '状态未知';
+    get('hud-armed').textContent = armed.available ? (armed.value ? '已解锁' : '已锁定') + ' · 最近接收' : '状态未知';
     get('hud-armed').setAttribute('fill', armed.valid ? armed.value ? '#f5b174' : '#c9e7d8' : '#c8d5e1');
-    get('hud-mode').textContent = mode.available ? mode.value + (mode.retained ? ' · 最近数据' : '') : '—';
+    get('hud-mode').textContent = mode.available ? mode.value + ' · 最近接收' : '—';
     get('flight-horizon').setAttribute('visibility', attitudeAvailable ? 'visible' : 'hidden');
     get('flight-horizon').setAttribute('transform', attitudeAvailable ? `rotate(${-roll.value} 320 180) translate(0 ${pitch.value * 3.5})` : '');
     get('attitude-empty').setAttribute('visibility', attitudeAvailable ? 'hidden' : 'visible');
-    get('attitude-status').textContent = attitudeValid ? '姿态实时有效' : attitudeAvailable ? `姿态最近数据 · ${Math.max(roll.ageS, pitch.ageS).toFixed(1)} s` : '无有效姿态';
+    get('attitude-status').textContent = attitudeAvailable ? `姿态最近接收 · ${Math.max(roll.ageS, pitch.ageS).toFixed(1)} s` : '无有效姿态';
+    get('attitude-status').title = attitudeValid ? '实时有效' : '保留最近有效姿态，当前有效期已过或链路中断';
     get('flight-attitude').setAttribute('aria-label', attitudeAvailable ? `${attitudeValid ? '实时姿态' : '最近有效姿态'}：横滚 ${roll.value.toFixed(1)} 度，俯仰 ${pitch.value.toFixed(1)} 度` : '姿态数据不可用');
-    const healthFresh = fresh && details.healthValid !== false && finite(age(details.healthAgeS)) && age(details.healthAgeS) <= 3;
-    const health = Array.isArray(details.health) ? details.health : [];
+    const healthReport = healthReading(), healthFresh = healthReport.valid, health = healthReport.items;
     renderPairs(get('flight-health'), (health.length ? health : ['陀螺仪', '加速度计', '磁力计', '气压计', 'GPS', '预解锁检查'].map(label => ({ label, state: '未上报' }))).map(item => {
-      let state = healthFresh ? item.state : !fresh ? '飞控断连 / 自检无有效状态' : finite(age(details.healthAgeS)) ? '自检已过期' : '自检未上报';
+      let state = healthFresh ? item.state : health.length ? `上次自检：${item.state}（${healthReport.ageS.toFixed(1)} s 前）；当前未确认` : !fresh ? '飞控断连 / 自检无有效状态' : finite(age(details.healthAgeS)) ? '自检已过期' : '自检未上报';
       if (fromRpi() && !healthFresh) {
         const group = item.label === '陀螺仪' ? 'gyro' : item.label === '加速度计' ? 'accel' : null;
         const samples = group ? ['X', 'Y', 'Z'].map(axis => metric(group + axis)) : [];
         state = samples.length && samples.every(sample => sample.available)
-          ? `${samples.every(sample => sample.valid) ? '实时' : `最近数据（${Math.max(...samples.map(sample => sample.ageS)).toFixed(1)} s）`} ${samples.map(sample => sample.value.toFixed(group === 'gyro' ? 4 : 3)).join(' / ')} ${group === 'gyro' ? 'rad/s' : 'm/s²'}（X/Y/Z）· ${state}`
+          ? `最近接收（${Math.max(...samples.map(sample => sample.ageS)).toFixed(1)} s） ${samples.map(sample => sample.value.toFixed(group === 'gyro' ? 4 : 3)).join(' / ')} ${group === 'gyro' ? 'rad/s' : 'm/s²'}（X/Y/Z）· ${state}`
           : state;
       }
       return [item.label, state];
     }));
-    const alerts = fresh && Array.isArray(details.alerts) ? details.alerts.filter(item => item.valid !== false && finite(age(item.ageS)) && age(item.ageS) <= 30) : [];
+    const alerts = alertReadings();
     const alertBox = get('flight-alerts');
-    if (!alerts.length) setText(alertBox, '最近 30 秒没有收到有效状态消息');
+    if (!alerts.length) setText(alertBox, '尚未收到有效状态消息');
     else {
       if (!alertBox.children.length) alertBox.textContent = '';
       while (alertBox.children.length > alerts.length) alertBox.lastElementChild.remove();
-      alerts.slice().reverse().forEach((item, index) => {
+      alerts.forEach((item, index) => {
         let row = alertBox.children[index];
         if (!row) { row = document.createElement('p'); const text = document.createElement('span'); text.className = 'alert-message'; row.append(document.createElement('span'), text); alertBox.append(row); }
-        setText(row.children[0], `${age(item.ageS).toFixed(1)} s 前 · 等级 ${item.severity}`); setText(row.children[1], item.text);
+        setText(row.children[0], `${item.valid ? '当前消息' : '历史消息 · 非当前警报'} · ${item.ageS.toFixed(1)} s 前 · 等级 ${item.severity}`); setText(row.children[1], item.text);
       });
     }
     get('mirror-source').textContent = snapshot?.transport?.peerIp ? `${snapshot.transport.peerIp} · SYS ${snapshot.transport.systemId} / COMP ${snapshot.transport.componentId}` : '尚未收到转发';
     get('mirror-count').textContent = String(snapshot?.transport?.acceptedMessages ?? 0);
     if (fromRpi()) {
       get('mirror-source').textContent = snapshot?.source === 'uav-rpi-deploy' ? '机载 flight-status-http' : '等待机载遥测';
-      const counts = Array.isArray(details.telemetrySources) ? details.telemetrySources.map(item => item.count).filter(value => finite(value) && value >= 0) : [];
+      const counts = [...sourceCache.values()].map(entry => entry.item.count).filter(value => finite(value) && value >= 0);
       setText(get('mirror-count'), counts.length ? String(counts.reduce((sum, value) => sum + Math.trunc(value), 0)) + '（各来源合计）' : '桥接未提供');
     }
     get('last-response').textContent = lastResponse ? lastResponse.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) + '（本机接收）' : '—';
@@ -362,14 +423,16 @@
     } catch (error) {
       // Preserve the original sample clock and mark the last validated values as recent data.
       errorMessage = AtomoriApi.message(error); failureCount++;
-      rawResponse = { error: errorMessage, lastReceivedAt: lastResponse?.toISOString() || null }; updateRawResponse();
+      // The banner reports the failure; keep the last complete payload available for inspection.
+      if (!snapshot) rawResponse = { error: errorMessage, lastReceivedAt: lastResponse?.toISOString() || null };
+      updateRawResponse();
     } finally {
       busy = false; get('refresh-flight').disabled = false; render();
-      // Count request/render time inside the 750 ms cadence; failed requests back off to 4 s.
-      if (!stopped && !document.hidden) pollTimer = setTimeout(poll, errorMessage ? Math.min(4000, 750 * 2 ** Math.min(failureCount - 1, 3)) : Math.max(0, 750 - (performance.now() - pollStartedAt)));
+      // Serial 1 s updates reduce H100 load; failed requests back off to 4 s.
+      if (!stopped && !document.hidden) pollTimer = setTimeout(poll, errorMessage ? Math.min(4000, 1000 * 2 ** Math.min(failureCount - 1, 2)) : Math.max(0, 1000 - (performance.now() - pollStartedAt)));
     }
   }
-  function start() { stopped = false; clearInterval(renderTimer); renderTimer = setInterval(render, 200); poll(); }
+  function start() { stopped = false; clearInterval(renderTimer); renderTimer = setInterval(() => { if (!document.hidden) render(); }, 1000); poll(); }
   get('refresh-flight').addEventListener('click', poll);
   get('telemetry-group-filter').addEventListener('change', renderMetrics);
   get('telemetry-search').addEventListener('input', renderMetrics);

@@ -78,6 +78,7 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
   const elapsed = (raw, at = now()) => Math.max(0, (at - responseTiming.get(raw).startedAt) / 1000);
   const available = raw => responseTiming.get(raw)?.available !== false;
   const gatewayEpochs = new Map();
+  let visionOnlySupported = true;
   const identity = (device, base, raw) => {
     const uptime = finite(raw.gateway?.uptime_s), previous = gatewayEpochs.get(base);
     if (device === 'UGV-01' && available(raw) && uptime !== null && uptime >= 0) {
@@ -126,7 +127,7 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
     } finally { if (timer) clearTimeout(timer); }
     if (!response.ok) {
       await response.body?.cancel();
-      throw new IntegrationUnavailableError('UPSTREAM_UNAVAILABLE', `上游设备服务返回 ${response.status}`);
+      throw Object.assign(new IntegrationUnavailableError('UPSTREAM_UNAVAILABLE', `上游设备服务返回 ${response.status}`), { upstreamStatus: response.status });
     }
     return response;
   }
@@ -254,7 +255,18 @@ export function createUpstreamIntegrations({ carUrl, uavVisionUrl, uavFlightUrl,
         // source independently so a slow vision service never holds up flight samples.
         await Promise.all([
           readVision ? (async () => {
-            try { raw = await requestJson(vision, '/api/status'); }
+            try {
+              // /api/status embeds all flight channels. Independent vision polling
+              // needs only the camera/pose snapshot, avoiding duplicate H100 traffic.
+              if (requestedSource === 'vision' && visionOnlySupported) {
+                try { raw = await requestJson(vision, '/api/vision'); }
+                catch (error) {
+                  if (![404, 405].includes(error.upstreamStatus)) throw error;
+                  visionOnlySupported = false;
+                  raw = await requestJson(vision, '/api/status');
+                }
+              } else raw = await requestJson(vision, '/api/status');
+            }
             catch (error) { lastError = error; }
           })() : null,
           readFlight ? (async () => {

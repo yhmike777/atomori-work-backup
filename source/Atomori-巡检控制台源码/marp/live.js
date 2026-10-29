@@ -17,6 +17,7 @@
   let stopped = false;
   const readings = AtomoriContinuity.createReadings();
   let retainedRelative = null, retainedLocation = null, retainedMode = null;
+  let lastUavRenderAt = -Infinity;
   const flightReading = key => {
     const elapsed = Math.max(0, (performance.now() - uavReceivedAt) / 1000);
     const item = latestFlight.metrics?.[key];
@@ -186,19 +187,25 @@
       && [relative.xM, relative.yM, relative.zM].every(Number.isFinite)
       && Number.isFinite(ageS) && ageS >= 0 && ageS <= relative.maxAgeS;
     if (valid) { retainedRelative = { ...relative }; }
+    const currentReason = relative?.reason;
     const displayed = valid || retainedRelative !== null;
     if (!valid && retainedRelative) relative = retainedRelative;
     const signed = (value, digits, unit) => `${value > 0 ? '+' : ''}${value.toFixed(digits)} <small>${unit}</small>`;
     const entries = [['relative-x', 'xM', 3, 'm'], ['relative-y', 'yM', 3, 'm'], ['relative-z', 'zM', 3, 'm'], ['relative-yaw', 'yawDeg', 1, '°']];
     for (const [id, key, digits, unit] of entries) {
-      get(id).innerHTML = displayed && Number.isFinite(relative[key]) ? signed(relative[key], digits, unit) : '—';
+      const reading = readings(`vision:${latestVision.displayIdentity || 'vision'}:${key}`, {
+        value: latestVision.relativePose?.[key], valid, ageS, maxAgeS: latestVision.relativePose?.maxAgeS,
+        unit, source: latestVision.relativePose?.source
+      });
+      const html = Number.isFinite(reading.value) ? signed(reading.value, digits, unit) : '—';
+      if (get(id).innerHTML !== html) get(id).innerHTML = html;
     }
     const state = get('vision-state');
     state.textContent = !config.uavVisionConfigured ? '机载未连接' : valid ? `视觉定位 · Tag ${relative.tagId ?? '—'}`
-      : relative?.reason === 'TAG_NOT_DETECTED' ? '未识别标签'
-      : relative?.reason === 'QUALITY_REJECTED' ? '视觉质量未通过'
-      : relative?.reason === 'STALE_OR_UNKNOWN_AGE' || relative?.valid ? '视觉数据过期'
-      : relative?.reason === 'INVALID_POSE' ? '相对位姿无效' : '视觉离线';
+      : currentReason === 'TAG_NOT_DETECTED' ? '未识别标签'
+      : currentReason === 'QUALITY_REJECTED' ? '视觉质量未通过'
+      : currentReason === 'STALE_OR_UNKNOWN_AGE' || latestVision.relativePose?.valid ? '视觉数据过期'
+      : currentReason === 'INVALID_POSE' ? '相对位姿无效' : '视觉离线';
     if (!valid && retainedRelative) state.textContent += ' · 最近位置';
     state.classList.toggle('amber', !valid);
     get('relative-x').title = '着陆标签相对无人机机体的位置，BODY_FRD：X 向前为正';
@@ -300,13 +307,29 @@
     // Add only browser transit, and never replace the other independent source.
     const sampleReceivedAt = AtomoriApi.sampleTime(data, requestedAt);
     if (Object.hasOwn(data, 'flight')) {
-      if (data.sourceIdentity && latestFlight.displayIdentity && data.sourceIdentity !== latestFlight.displayIdentity) retainedMode = null;
-      latestFlight = { ...(data.flight || {}), displayIdentity: data.sourceIdentity || data.source || null }; uavReceivedAt = sampleReceivedAt; }
-    if (Object.hasOwn(data, 'vision')) { latestVision = data.vision || {}; visionReceivedAt = sampleReceivedAt; }
+      const displaySource = data.source || latestFlight.displaySource || null;
+      const displayIdentity = data.sourceIdentity || (displaySource === latestFlight.displaySource ? latestFlight.displayIdentity : displaySource) || null;
+      if (displayIdentity && latestFlight.displayIdentity && displayIdentity !== latestFlight.displayIdentity) retainedMode = null;
+      latestFlight = { ...(data.flight || {}), displaySource, displayIdentity }; uavReceivedAt = sampleReceivedAt;
+      // Capture every accepted sample before the slower presentation clock; a
+      // subsequent sparse response must not discard a short-lived valid value.
+      for (const key of Object.keys(latestFlight.metrics || {})) flightReading(key);
+    }
+    if (Object.hasOwn(data, 'vision')) {
+      const displayIdentity = data.sourceIdentity || latestVision.displayIdentity || data.source || null;
+      if (displayIdentity && latestVision.displayIdentity && displayIdentity !== latestVision.displayIdentity) retainedRelative = null;
+      latestVision = { ...(data.vision || {}), displayIdentity }; visionReceivedAt = sampleReceivedAt;
+      // Relative channels have independent display history (including a missing heading).
+      renderRelativePosition();
+    }
     renderUav();
   }
 
   function renderUav() {
+    if (document.hidden) return;
+    const now = performance.now();
+    if (now - lastUavRenderAt < 1000) return;
+    lastUavRenderAt = now;
     const flight = latestFlight;
     document.querySelectorAll('[data-flight-diagnostic]').forEach(node => {
       const key = node.dataset.flightDiagnostic;
@@ -319,9 +342,8 @@
     const roll = metricValue('roll');
     const pitch = metricValue('pitch');
     renderAttitude(roll, pitch);
-    const retainedAttitude = flightReading('roll').retained || flightReading('pitch').retained;
-    get('attitude-status').hidden = !retainedAttitude && Number.isFinite(roll) && Number.isFinite(pitch);
-    get('attitude-status').textContent = retainedAttitude ? '最近姿态' : '姿态不可用';
+    get('attitude-status').hidden = false;
+    get('attitude-status').textContent = Number.isFinite(roll) && Number.isFinite(pitch) ? '最近采样' : '姿态不可用';
     explainFlightMetric(get('uav-roll'), 'roll');
     explainFlightMetric(get('uav-pitch'), 'pitch');
     show(metric('uav', 1), metricValue('batteryPercent'), 0, '%');
@@ -337,7 +359,7 @@
     if (flightSource() === 'mission-planner') height.title = get('range-value').title = 'Mission Planner 测距方向未确认，尚无可用的下视距离或离地高度';
     if (valid) retainedMode = `${flight.mode} · ${flight.armed ? '已解锁' : '未解锁'}`;
     get('drone-state').textContent = !config.uavVisionConfigured && !independentFlight() ? '飞控未连接' : valid ? `${flight.mode} · ${flight.armed ? '已解锁' : '未解锁'}` : `重连中${retainedMode ? ' · 最近：' + retainedMode : ''}`;
-    document.querySelector('.uav-panel .telemetry-heading small').textContent = valid ? retainedAttitude ? '弱网 · 保留最近读数' : '持续更新 · 弱网保留读数' : '连接中断 · 保留最近数据';
+    document.querySelector('.uav-panel .telemetry-heading small').textContent = valid ? '接收中 · 显示最近采样' : '连接中断 · 保留最近数据';
     document.dispatchEvent(new CustomEvent('atomori:uav', { detail: { online: valid, battery: metricValue('batteryPercent') } }));
   }
 
@@ -771,6 +793,7 @@
       : tab === 'dock' && config.uavVisionConfigured ? ['ov9281.mjpg', 'OV9281 · 下视预览'] : null;
   }
   function openLiveCamera(live) {
+    if (document.hidden || stopped) return;
     // An offline vision service can occupy a browser HTTP slot for seconds.
     // Its independent status poll will discover recovery before we open MJPEG.
     if (live[0] === 'ov9281.mjpg' && latestVision.sensor !== 'ov9281') {
@@ -806,6 +829,17 @@
   function applyUavCamera() {
     const live = desiredLiveCamera();
     const camera = get('main-camera');
+    if (document.hidden) {
+      // Hidden duplicate dashboards must not compete for H100 video bandwidth.
+      // Keep the decoded canvas and readings; resume this source on return.
+      uavFrames.hold();
+      liveConnection = null;
+      clearTimeout(retryTimer); retryTimer = null;
+      clearInterval(cameraClockTimer); cameraClockTimer = null;
+      camera.removeAttribute('src'); camera.style.visibility = 'hidden';
+      get('camera-quality').textContent = '页面隐藏 · 保留画面';
+      return;
+    }
     if (liveConnection && (!live || liveConnection.cameraId !== live[0])) {
       uavFrames.clear(); lastFrameTiming = null;
       clearTimeout(retryTimer); retryTimer = null;
@@ -847,6 +881,7 @@
     }
   }
   async function monitorCamera() {
+    if (document.hidden || stopped) return;
     const connection = liveConnection;
     if (!connection) return;
     try {
@@ -870,17 +905,21 @@
         retryLiveCamera();
       }
     } catch {
-      // A status request can fail while MJPEG still plays. Do not tear it down
-      // until repeated monitoring failures exceed the grace period.
+      // A failed status request is not evidence that the video stopped. Allow
+      // a longer grace period before a bounded reconnect: Chromium does not
+      // reliably emit an image error when an established MJPEG stream ends.
       if (connection === liveConnection) {
         connection.healthFailureAt ??= Date.now();
         get('camera-quality').textContent = '链路波动 · 保留画面';
-        if (Date.now() - connection.healthFailureAt > 8000) retryLiveCamera('图传状态中断 · 自动重连');
+        if ((uavFrames.hasFrame && get('main-camera').naturalWidth === 0) || Date.now() - connection.healthFailureAt > 20000) {
+          retryLiveCamera('图传状态持续中断 · 自动重连');
+        }
       }
     }
   }
   if (config.uavVisionConfigured) document.querySelector('[data-camera-tab="dock"]').click();
   applyUavCamera();
+  document.addEventListener('visibilitychange', () => { if (!stopped) { applyUavCamera(); renderUav(); } });
   document.querySelectorAll('[data-camera-tab], #restore-camera').forEach(button => button.addEventListener('click', () => {
     clearTimeout(retryTimer); retryTimer = null;
     queueMicrotask(applyUavCamera);
@@ -889,7 +928,7 @@
 
   get('expand-camera').addEventListener('click', event => {
     const tab = document.querySelector('[data-camera-tab][aria-pressed="true"]')?.dataset.cameraTab;
-    const url = tab === 'uav' && config.carConfigured ? '/api/v1/devices/UAV-01/cameras/a8.mjpg'
+    const url = tab === 'uav' && (config.uavVideoConfigured ?? config.carConfigured) ? '/api/v1/devices/UAV-01/cameras/a8.mjpg'
       : tab === 'dock' && config.uavVisionConfigured ? '/api/v1/devices/UAV-01/cameras/ov9281.mjpg' : null;
     if (!url) {
       if (config.liveOnly) {
@@ -920,6 +959,7 @@
   }
 
   async function pollDevice(deviceId, apply, offline, source) {
+    if (deviceId === 'UAV-01' && document.hidden) return;
     try {
       const requestedAt = performance.now();
       const data = (await AtomoriApi.request(`/devices/${deviceId}/telemetry${source ? '?source=' + source : ''}`, { timeoutMs: 5000 })).data;
@@ -947,14 +987,15 @@
     renderUgv();
   }, 3000);
   if (flightSource() === 'mission-planner') void repeat(async () => {
+    if (document.hidden) return;
     const requestedAt = performance.now();
     try {
       const data = (await AtomoriApi.request('/devices/UAV-01/mission-planner', { timeoutMs: 4000 })).data;
       if (data?.deviceId !== 'UAV-01' || data.source !== 'mission-planner-mavlink' || typeof data.flight?.connected !== 'boolean') throw new Error('飞控遥测来源无效');
       if (!stopped) applyUav(data, requestedAt);
     } catch { if (!stopped) renderUav(); }
-  }, 750);
-  else if (flightSource() === 'raspberry-pi') void repeat(() => pollDevice('UAV-01', applyUav, renderUav, 'flight'), 750);
+  }, 1000);
+  else if (flightSource() === 'raspberry-pi') void repeat(() => pollDevice('UAV-01', applyUav, renderUav, 'flight'), 1000);
   if (config.uavVisionConfigured) void repeat(() => pollDevice('UAV-01', applyUav,
     renderUav, independentFlight() ? 'vision' : undefined), 1000);
   void repeat(async () => { await monitorCamera(); if (!stopped) applyUavCamera(); }, 1000);

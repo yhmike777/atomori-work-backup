@@ -8,7 +8,9 @@ function setup(kind = 'raspberry-pi') {
   let now = 1000;
   const context = vm.createContext({ performance: { now: () => now }, finite: value => typeof value === 'number' && Number.isFinite(value) });
   vm.runInContext(source.slice(source.indexOf('  const fields ='), source.indexOf('  function render()')) + `
-    globalThis.view = { metric, metricDefinitions, diagnosticState, reasonText, statusReading,
+    globalThis.view = { metric, metricDefinitions, diagnosticState, reasonText, statusReading, healthReading, alertReadings,
+      diagnostic(key, current) { return diagnosticReading(executionCache, key, current); },
+      sources() { return [...sourceCache.keys()].map(key => diagnosticReading(sourceCache, key, snapshot?.flight?.details?.telemetrySources?.find((item, index) => diagnosticKey(item, index) === key))); },
       error(value) { errorMessage = value; },
       set(value, kind) { snapshot = value; config = { uavFlightSource: kind }; receivedAt = performance.now(); errorMessage = ''; rememberSnapshot(); } };
   `, context);
@@ -145,6 +147,42 @@ test('诊断计数不替代有效读数，来源按独立年龄过期且保留�
   assert.equal(app.view.metric('rcInput1').value, null);
 });
 
+test('来源与执行器诊断空包后保留原始消息及年龄，失效时不当作当前指令', () => {
+  const app = setup(), packet = app.flight({}), diagnostic = { status: 'VALID', valid: true, ageS: 0.1, maxAgeS: 1, data: { armed: false } };
+  packet.sourceIdentity = 'same-pi';
+  packet.flight.details = { telemetrySources: [{ ...diagnostic, topic: '/test', messageType: 'State', count: 10 }], executor: diagnostic };
+  app.view.set(packet, 'raspberry-pi');
+  assert.equal(app.view.sources()[0].valid, true);
+  assert.equal(app.view.diagnostic('executor', diagnostic).valid, true);
+  app.at(5000); app.view.set({ flight: { connected: false, metrics: {}, details: {} } }, 'raspberry-pi');
+  const source = app.view.sources()[0], executor = app.view.diagnostic('executor');
+  assert.equal(source.item.count, 10); assert.equal(source.item.data.armed, false); assert.equal(source.valid, false); assert.equal(source.ageS, 4.1);
+  assert.equal(executor.item.data.armed, false); assert.equal(executor.valid, false); assert.equal(executor.ageS, 4.1);
+  const stale = app.flight({}); stale.flight.details.executor = { ...diagnostic, ageS: 5, data: { armed: true }, valid: false, status: 'STALE' };
+  app.view.set(stale, 'raspberry-pi'); assert.equal(app.view.diagnostic('executor', stale.flight.details.executor).item.data.armed, false, 'older samples cannot replace newer diagnostic history');
+  app.view.set({ sourceIdentity: 'other-pi', flight: { connected: false, metrics: {} } }, 'raspberry-pi');
+  assert.equal(app.view.sources().length, 0); assert.equal(app.view.diagnostic('executor').available, false);
+});
+
+test('历史自检和状态消息持续展示但不再标当前，新警报在下次渲染即可显示且缓存有界', () => {
+  const app = setup(), packet = app.flight({});
+  packet.sourceIdentity = 'same-pi';
+  packet.flight.details = { health: [{ label: '陀螺仪', state: '正常' }], healthValid: true, healthAgeS: 0.1,
+    alerts: [{ text: '电压过低', severity: 2, valid: true, ageS: 0.2 }] };
+  app.view.set(packet, 'raspberry-pi');
+  assert.equal(app.view.healthReading().valid, true); assert.equal(app.view.alertReadings()[0].valid, true);
+  app.at(11000); app.view.error('timeout');
+  assert.equal(app.view.healthReading().items[0].state, '正常'); assert.equal(app.view.healthReading().valid, false); assert.equal(app.view.healthReading().ageS, 10.1);
+  assert.equal(app.view.alertReadings()[0].text, '电压过低'); assert.equal(app.view.alertReadings()[0].valid, false); assert.equal(app.view.alertReadings()[0].ageS, 10.2);
+  app.set({}); assert.equal(app.view.healthReading().valid, false); assert.equal(app.view.alertReadings()[0].valid, false);
+  packet.flight.details.alerts = Array.from({ length: 60 }, (_, index) => ({ text: `新消息 ${index}`, severity: 1, valid: true, ageS: index / 100 }));
+  app.view.set(packet, 'raspberry-pi');
+  assert.equal(app.view.alertReadings().length, 50); assert.equal(app.view.alertReadings()[0].valid, true);
+  assert.equal(app.view.alertReadings()[0].text, '新消息 0', 'bounded history retains the newest actual messages rather than array insertion order');
+  app.view.set({ sourceIdentity: 'other-pi', flight: { connected: false, metrics: {} } }, 'raspberry-pi');
+  assert.equal(app.view.healthReading().items.length, 0); assert.equal(app.view.alertReadings().length, 0);
+});
+
 function polling() {
   let now = 1000;
   const pending = [], timers = [], button = { disabled: false };
@@ -162,7 +200,7 @@ function polling() {
   return { context, pending, timers, button, at: value => { now = value; }, response, poll: () => context.pollNow() };
 }
 
-test('140ms请求纳入750ms刷新周期，慢请求串行且不额外等待750ms', async () => {
+test('140ms请求纳入1秒刷新周期，慢请求串行且不额外等待1秒', async () => {
   const app = polling();
   const first = app.poll();
   assert.equal(app.pending.length, 1);
@@ -170,29 +208,30 @@ test('140ms请求纳入750ms刷新周期，慢请求串行且不额外等待750m
   await app.poll();
   assert.equal(app.pending.length, 1, 'manual refresh while busy cannot overlap the request');
   app.at(1140); app.pending[0].resolve(app.response()); await first;
-  assert.equal(app.timers[0].delay, 610);
+  assert.equal(app.timers[0].delay, 860);
   assert.equal(app.button.disabled, false);
-  app.at(1750); const second = app.timers[0].callback();
-  assert.equal(app.pending[1].started, 1750, 'request starts remain 750ms apart');
-  app.at(2700); app.pending[1].resolve(app.response()); await second;
-  assert.equal(app.timers[1].delay, 0, 'a response over 750ms schedules one immediate serial follow-up');
+  app.at(2000); const second = app.timers[0].callback();
+  assert.equal(app.pending[1].started, 2000, 'request starts remain 1000ms apart');
+  app.at(3100); app.pending[1].resolve(app.response()); await second;
+  assert.equal(app.timers[1].delay, 0, 'a response over 1000ms schedules one immediate serial follow-up');
   assert.equal(app.pending.length, 2, 'scheduling does not start another request synchronously');
 });
 
-test('失败按750ms退避至4秒且不刷新原样本时钟，恢复后重置退避', async () => {
+test('失败按1秒退避至4秒且不刷新原样本时钟，恢复后重置退避', async () => {
   const app = polling(), retained = { flight: { connected: true } };
-  app.context.snapshot = retained; app.context.receivedAt = 800;
-  for (const [index, delay] of [750, 1500, 3000, 4000, 4000].entries()) {
+  app.context.snapshot = retained; app.context.rawResponse = retained; app.context.receivedAt = 800;
+  for (const [index, delay] of [1000, 2000, 4000, 4000, 4000].entries()) {
     const pending = app.poll(); app.at(1140 + index * 1000); app.pending[index].reject(new Error('temporary failure')); await pending;
     assert.equal(app.timers[index].delay, delay);
   }
   assert.equal(app.context.snapshot, retained);
+  assert.equal(app.context.rawResponse, retained, 'a request failure does not replace the last inspectable payload with an error object');
   assert.equal(app.context.receivedAt, 800);
   assert.equal(app.context.busy, false);
   const recovered = app.poll(); app.pending[5].resolve(app.response()); await recovered;
   assert.equal(app.context.failureCount, 0);
   const failedAgain = app.poll(); app.pending[6].reject(new Error('failure after recovery')); await failedAgain;
-  assert.equal(app.timers.at(-1).delay, 750);
+  assert.equal(app.timers.at(-1).delay, 1000);
 });
 
 test('隐藏页面和已停止页面不发请求，等待中的请求完成后也不再排程', async () => {

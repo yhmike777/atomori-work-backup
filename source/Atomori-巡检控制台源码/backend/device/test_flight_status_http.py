@@ -160,6 +160,70 @@ class TelemetryBridgeTests(unittest.TestCase):
         self.state.pose_received_s -= 1
         self.assertIsNone(self.state.snapshot()['telemetry']['roll_deg'])
 
+    def test_expired_imu_without_pose_keeps_imu_source_and_real_age(self):
+        first = self.imu()
+        source = first['telemetry_meta']['roll_deg']['source']
+        self.state.imu_received_s -= 0.6
+        stale = self.state.snapshot()
+        for key in ('roll_deg', 'pitch_deg'):
+            meta = stale['telemetry_meta'][key]
+            self.assertEqual(meta['source'], source)
+            self.assertGreaterEqual(meta['age_s'], 0.6)
+            self.assertEqual(meta['max_age_s'], 0.5)
+            self.assertEqual(meta['reason'], 'STALE')
+            self.assertFalse(meta['valid'])
+            self.assertIsNone(stale['telemetry'][key])
+        self.assertEqual(self.imu()['telemetry']['roll_deg'], 0)
+
+    def test_invalid_pose_does_not_replace_last_imu_source(self):
+        first = self.imu()
+        self.state.imu_received_s -= 0.6
+        for quaternion in ((0, 0, 0, 0), (float('nan'), 0, 0, 1)):
+            self.state.pose_quaternion = quaternion
+            self.state.pose_received_s = time.monotonic()
+            result = self.state.snapshot()
+            self.assertEqual(result['telemetry_meta']['roll_deg']['source'], first['telemetry_meta']['roll_deg']['source'])
+            self.assertIsNone(result['telemetry']['roll_deg'])
+
+    def test_pose_fallback_keeps_its_source_until_valid_imu_returns(self):
+        first = self.imu()
+        self.state.imu_received_s -= 0.6
+        self.state.pose_quaternion = (0, 0, 0, 1)
+        self.state.pose_received_s = time.monotonic()
+        fallback = self.state.snapshot()
+        self.assertIn('local_position', fallback['telemetry_meta']['roll_deg']['source'])
+        self.assertEqual(fallback['telemetry']['roll_deg'], 0)
+        self.state.pose_received_s -= 0.6
+        stale = self.state.snapshot()
+        self.assertEqual(stale['telemetry_meta']['roll_deg']['source'], fallback['telemetry_meta']['roll_deg']['source'])
+        self.assertGreaterEqual(stale['telemetry_meta']['roll_deg']['age_s'], 0.6)
+        self.assertIsNone(stale['telemetry']['roll_deg'])
+        restored = self.imu()
+        self.assertEqual(restored['telemetry_meta']['roll_deg']['source'], first['telemetry_meta']['roll_deg']['source'])
+        self.assertTrue(restored['telemetry_meta']['roll_deg']['valid'])
+
+    def test_pose_only_source_is_stable_even_when_first_snapshot_is_stale(self):
+        self.state.pose_quaternion = (0, 0, 0, 1)
+        self.state.pose_received_s = time.monotonic() - 0.6
+        first = self.state.snapshot()
+        self.assertIn('local_position', first['telemetry_meta']['roll_deg']['source'])
+        self.assertEqual(first['telemetry_meta']['roll_deg']['reason'], 'STALE')
+        self.state.pose_received_s = time.monotonic()
+        self.assertTrue(self.state.snapshot()['telemetry_meta']['roll_deg']['valid'])
+        self.state.pose_received_s -= 0.6
+        self.assertEqual(self.state.snapshot()['telemetry_meta']['roll_deg']['source'], first['telemetry_meta']['roll_deg']['source'])
+
+    def test_disconnected_pose_does_not_replace_last_imu_source(self):
+        first = self.imu()
+        self.state.imu_received_s -= 0.6
+        self.state.pose_quaternion = (0, 0, 0, 1)
+        self.state.pose_received_s = time.monotonic()
+        self.state.vehicle['connected'] = False
+        result = self.state.snapshot()
+        self.assertEqual(result['telemetry_meta']['roll_deg']['source'], first['telemetry_meta']['roll_deg']['source'])
+        self.assertEqual(result['telemetry_meta']['roll_deg']['reason'], 'FLIGHT_CONTROLLER_DISCONNECTED')
+        self.assertIsNone(result['telemetry']['roll_deg'])
+
     def test_heading_rejects_invalid_values_and_expires(self):
         for value in (None, True, float('nan'), -1, 360):
             self.node._heading(types.SimpleNamespace(data=value))

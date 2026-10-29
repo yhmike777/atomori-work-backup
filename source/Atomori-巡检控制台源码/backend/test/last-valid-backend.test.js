@@ -76,6 +76,28 @@ test('后续无效值不刷新旧样本，缩短通道仍实时失效', async ()
   assert.equal(item.lastValid.value, 1600); assert.equal(item.lastValid.ageS, 2.1);
 });
 
+test('姿态源仅在真正有效的 IMU/pose 切换时改变，过期保留原来源历史', async () => {
+  const raw = flight(), imu = '/mavros/imu/data.orientation (ENU/FLU -> FRD)', pose = '/mavros/local_position/pose.orientation (ENU/FLU -> FRD)';
+  raw.telemetry_meta.roll_deg.source = imu;
+  const r = rig({ uavFlightUrl: 'http://pi' }, raw);
+  await r.api.telemetry('UAV-01', 'flight');
+  const roll = async () => (await r.api.telemetry('UAV-01', 'flight')).flight.metrics.roll;
+  r.advance(600);
+  raw.telemetry.roll_deg = null; Object.assign(raw.telemetry_meta.roll_deg, { valid: false, age_s: 0.7 });
+  let item = await roll();
+  assert.equal(item.value, null); assert.equal(item.valid, false); assert.equal(item.maxAgeS, 0.5);
+  assert.equal(item.lastValid.value, 12.5); assert.equal(item.lastValid.source, imu); assert.equal(item.lastValid.ageS, 0.7);
+  r.advance(100);
+  raw.telemetry.roll_deg = 5; Object.assign(raw.telemetry_meta.roll_deg, { valid: true, age_s: 0.1, source: pose });
+  item = await roll(); assert.equal(item.value, 5); assert.equal(item.lastValid.source, pose);
+  r.advance(600);
+  raw.telemetry.roll_deg = null; Object.assign(raw.telemetry_meta.roll_deg, { valid: false, age_s: 0.7 });
+  item = await roll(); assert.equal(item.value, null); assert.equal(item.lastValid.value, 5); assert.equal(item.lastValid.source, pose);
+  r.advance(100);
+  raw.telemetry.roll_deg = 2; Object.assign(raw.telemetry_meta.roll_deg, { valid: true, age_s: 0.1, source: imu });
+  item = await roll(); assert.equal(item.value, 2); assert.equal(item.lastValid.value, 2); assert.equal(item.lastValid.source, imu);
+});
+
 test('UGV 短断网保留数值/开关/ADC 模型参考值，在线和电池会话门控失效', async () => {
   const r = rig({ carUrl: 'http://car' }, car()); await r.api.telemetry('UGV-01');
   r.advance(100); r.fail(true);
